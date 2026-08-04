@@ -1,0 +1,35 @@
+{
+  "version": 2,
+  "scenarios": [
+    {
+      "id": "pipeline_simple",
+      "difficulty": "simple",
+      "prompt": "A release pipeline runs as follows:\n1. Extract takes 28 minutes.\n2. After Extract finishes, Transform takes 34 minutes and Schema Validation takes 18 minutes. These two steps run in parallel.\n3. Load takes 22 minutes and starts only after both parallel steps finish.\n4. Post-load verification then takes 7 minutes.\n\nAn alert triggers only when total elapsed pipeline time is strictly greater than 90 minutes. Calculate elapsed time along the critical path and apply the alert rule.\n\nReturn one valid JSON object only, with no Markdown or explanatory prose:\n{\"total_minutes\": <integer>, \"alert\": <true or false>}"
+    },
+    {
+      "id": "pipeline_moderate",
+      "difficulty": "moderate",
+      "prompt": "A 90-minute maintenance window has five sequential work items. Choose a valid set that maximizes total risk reduction. All selected items must fit within the window, all dependencies must also be selected, and the set must include at least one backup-resilience item. If risk reduction ties, choose the set with fewer total minutes.\n\n| Item | Minutes | Risk reduction | Dependency | Backup-resilience |\n| A | 25 | 7 | None | No |\n| B | 20 | 7 | A | Yes |\n| C | 35 | 10 | None | No |\n| D | 15 | 6 | C | Yes |\n| E | 30 | 7 | None | No |\n\nReturn one valid JSON object only, with no Markdown or explanatory prose. List selected items alphabetically:\n{\"selected_items\": [\"<item>\", \"...\"], \"total_minutes\": <integer>, \"total_risk_reduction\": <integer>}"
+    },
+    {
+      "id": "pipeline_complex",
+      "difficulty": "complex",
+      "prompt": "Allocate exactly 12 whole worker slots across three sequential pipeline stages: Extract (e), Transform (t), and Validate (v). Each stage must receive at least one worker.\n\nStage durations in minutes:\n- Extract: 240 / min(e, 6)\n- Transform: max(60, 96 - 6 * max(t - 4, 0))\n- Validate: max(42, 72 - 5 * max(v - 3, 0))\n- Load: 25 + 10 when e > 4 + 5 when t > 5\n\nThe full pipeline time is Extract + Transform + Validate + Load and must be 240 minutes or less. Worker cost is $2 per worker-minute for Extract, Transform, and Validate only; Load has no worker cost.\n\nChoose the allocation with the lowest total worker cost. If costs tie, choose the allocation with the shorter pipeline time.\n\nReturn one valid JSON object only, with no Markdown or explanatory prose:\n{\"extract_workers\": <integer>, \"transform_workers\": <integer>, \"validate_workers\": <integer>, \"pipeline_minutes\": <integer>, \"total_cost_dollars\": <integer>}"
+    },
+    {
+      "id": "policy",
+      "difficulty": "simple",
+      "prompt": "Apply only these support-policy rules:\n1. An expedited replacement is allowed when the account is active, the diagnostic code is H2 or H4, the incident was reported within 30 days, and the account has no fraud hold.\n2. Manager review is required when the replacement value is greater than $750 or the account has at least two replacement claims in the previous 90 days.\n3. A manager-review requirement does not by itself cancel expedited-replacement eligibility.\n\nCase:\n- Account status: active\n- Diagnostic code: H2\n- Incident age: 18 days\n- Fraud hold: no\n- Replacement value: $680\n- Replacement claims in previous 90 days: 2\n\nReturn one valid JSON object only, with no Markdown or explanatory prose:\n{\"expedited_replacement\": <true or false>, \"manager_review\": <true or false>}"
+    },
+    {
+      "id": "extraction",
+      "difficulty": "moderate",
+      "prompt": "Analyze this incident using only the rules and facts below.\n\nRoot-cause deployment rules:\n1. The deployment must target the affected service.\n2. It must have completed no more than 15 minutes before the incident began.\n3. If multiple deployments qualify, choose the one that completed latest.\n\nResolution rule:\n- The incident is resolved only if every error-rate sample collected during the first 15 minutes after rollback completion is strictly below 1.0%.\n\nIncident:\n- Incident: INC-4821\n- Affected service: Payment API\n- Incident began: 09:14 UTC\n- Rollback started: 09:20 UTC\n- Rollback completed: 09:28 UTC\n\nRecent deployments:\n- DEP-768, Payment API, completed 08:56 UTC\n- DEP-771, Payment API, completed 09:08 UTC\n- DEP-772, Catalog API, completed 09:12 UTC\n\nPost-rollback samples:\n- 09:31 UTC: 0.8%\n- 09:36 UTC: 1.1%\n- 09:41 UTC: 0.4%\n- 09:47 UTC: 0.2%\n\nCustomer-impact duration runs from incident start through rollback completion.\n\nReturn one valid JSON object only, with no Markdown or explanatory prose:\n{\"incident_id\": \"<id>\", \"root_cause_deployment\": \"<deployment id>\", \"customer_impact_minutes\": <integer>, \"max_error_rate_in_resolution_window_pct\": <number>, \"resolved\": <true or false>}"
+    },
+    {
+      "id": "debugging",
+      "difficulty": "complex",
+      "prompt": "The function below is intended to calculate total task cost, but it contains four independent defects.\n\nRules:\n1. Include a task only when it is active and not cancelled.\n2. Subtract the task's free minutes, with a minimum of zero billable minutes.\n3. Round billable minutes up to the next 15-minute block. Zero remains zero.\n4. Task cost is rounded billable minutes times workers times the task's dollar rate.\n5. For an emergency task, multiply that task's cost by 3/2 before adding it to the total.\n6. Add every eligible task's cost to the running total.\n\ndef total_cost(tasks):\n    total = 0\n    for task in tasks:\n        if task[\"active\"] or not task[\"cancelled\"]:\n            billable = max(task[\"minutes\"] - task[\"free_minutes\"], 0)\n            rounded = (billable // 15) * 15\n            task_cost = rounded * task[\"workers\"] * task[\"rate\"]\n            if task[\"priority\"] == \"emergency\":\n                total = total * 3 // 2\n            total = task_cost\n    return total\n\nTasks:\n- A: active=true, cancelled=false, minutes=38, free_minutes=5, workers=2, rate=3, priority=normal\n- B: active=false, cancelled=false, minutes=90, free_minutes=0, workers=4, rate=5, priority=normal\n- C: active=true, cancelled=false, minutes=31, free_minutes=1, workers=2, rate=4, priority=emergency\n- D: active=true, cancelled=true, minutes=60, free_minutes=0, workers=3, rate=2, priority=normal\n- E: active=true, cancelled=false, minutes=5, free_minutes=5, workers=8, rate=10, priority=normal\n\nApply the corrected behavior and calculate the results. List eligible task IDs alphabetically. Include only eligible tasks in the per-task objects. The final task cost must include the emergency multiplier when applicable.\n\nReturn one valid JSON object only, with no Markdown or explanatory prose:\n{\"eligible_task_ids\": [\"<task id>\", \"...\"], \"rounded_billable_minutes\": {\"<task id>\": <integer>}, \"final_task_cost_dollars\": {\"<task id>\": <integer>}, \"correct_total_dollars\": <integer>}"
+    }
+  ]
+}

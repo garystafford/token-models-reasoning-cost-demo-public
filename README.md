@@ -1,0 +1,285 @@
+# Token Models Reasoning Demo
+
+This project compares reasoning-token usage, latency, and estimated on-demand cost across Anthropic Claude and OpenAI GPT models on Amazon Bedrock Mantle. Both benchmark scripts use the same six scenarios from `reasoning_benchmark_prompts.json`.
+
+Each request is billable. Review the model lists and pricing dictionaries in the scripts before running a full benchmark. The on-demand cost is estimated to be a minimum $25-$30.
+
+## Prerequisites
+
+- Python 3.10 or later
+- AWS CLI configured with credentials that can invoke the selected Bedrock models in `us-east-1`
+- Access to the required Amazon Bedrock marketplace products and model IDs
+
+## Local Setup
+
+Run these commands from this directory 1x:
+
+```bash
+python -m pip install virtualenv -Uq --break-system-packages
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+```
+
+For future sessions, just use the single command:
+
+```bash
+source .venv/bin/activate
+```
+
+## AWS Authentication
+
+The scripts use the default AWS credential chain. For AWS IAM Identity Center (SSO), authenticate before starting a benchmark:
+
+```bash
+aws sso login
+```
+
+To use a named profile, select it in the same shell:
+
+```bash
+export AWS_PROFILE=your-profile-name
+aws sso login --profile "$AWS_PROFILE"
+```
+
+## Fable 5 Account Setup
+
+The Anthropic benchmark includes Claude Fable 5 by default. Before running it, set the AWS account's Amazon Bedrock data-retention mode to `provider_data_share`. Without this account-level data-sharing setting, Fable 5 requests fail.
+
+AWS does not provide a console UI for this setting at launch. With a current AWS CLI, inspect the setting first:
+
+```bash
+aws bedrock get-account-data-retention --region us-east-1
+```
+
+To opt in to the mode required by Fable 5:
+
+```bash
+aws bedrock put-account-data-retention \
+  --mode provider_data_share \
+  --region us-east-1
+```
+
+## Sync With EC2 And S3
+
+For the benchmark, I ran all test on an Amazon EC2 instance in the `us-east-1` AWS Region. This avoided connectivity and other potential issues that could arise from running the scripts locally on my Mac.
+
+Connect to the EC2 instance:
+
+```bash
+export IP_ADDRESS=<YOUR_EC2_IP_ADDRESS>
+
+ssh -i ~/.ssh/advanced-networking-cert.pem "ec2-user@${YOUR_EC2_IP_ADDRESS}"
+```
+
+From the local Mac, sync the project code to the EC2 instance:
+
+```bash
+rsync -avz \
+  --exclude '.venv/' \
+  --exclude '__pycache__/' \
+  --exclude '.git/' \
+  --exclude '.DS_Store' \
+  --exclude '.gitignore' \
+  --exclude 'results/' \
+  --exclude 'blog/' \
+  --exclude '*.log' \
+  -e "ssh -i ~/.ssh/advanced-networking-cert.pem" \
+  /Users/garystaf/Documents/Projects/token_models_reasoning_demo/ \
+  "ec2-user@${YOUR_EC2_IP_ADDRESS}:~/token_models_reasoning_demo/"
+```
+
+On EC2, upload the completed result files to S3:
+
+```bash
+cd ~/token_models_reasoning_demo
+aws s3 sync results/ s3://YOUR_S3_BUCKET/token_models_reasoning_demo/results/
+```
+
+On the local Mac, download those result files from S3:
+
+```bash
+cd /Users/garystaf/Documents/Projects/token_models_reasoning_demo
+aws s3 sync s3://YOUR_S3_BUCKET/token_models_reasoning_demo/results/ results/
+```
+
+`aws s3 sync` copies new and changed files without deleting files that exist only at the destination.
+
+## Run The Benchmark
+
+Optional: use `time` to measure total runtime of scripts.
+
+```bash
+time python bedrock_reasoning_benchmark_anthropic.py
+time python bedrock_reasoning_benchmark_openai.py
+```
+
+Run the scripts from this project directory so their result files are written here.
+
+Each benchmark case gets a fresh Bedrock bearer token from the active AWS credentials. Transient AWS credential errors are retried six times with exponential backoff.
+
+The timestamped JSON result file is atomically updated after every completed call. If a process is interrupted, the file preserves all calls completed up to that point. A checkpoint is partial evidence and does not automatically resume the remaining combinations.
+
+### Run In The Background
+
+Use `nohup` to run both benchmarks sequentially in one background process that continues after the terminal closes. Change the max value below to run the complete cycles n times, with Anthropic followed by OpenAI in each cycle:
+
+```bash
+nohup sh -c '
+for run in {1..6}; do
+  echo "Starting benchmark cycle $run of 3"
+  python -u bedrock_reasoning_benchmark_anthropic.py
+  python -u bedrock_reasoning_benchmark_openai.py
+done
+' > benchmark.log 2>&1 &
+
+BENCHMARK_PID=$!
+echo "$BENCHMARK_PID" > benchmark.pid
+echo "Benchmark PID: $BENCHMARK_PID"
+```
+
+Follow the three-cycle run with:
+
+```bash
+tail -f benchmark.log
+```
+
+Running sequentially avoids introducing additional Bedrock throttling and local network contention into latency and retry measurements.
+
+Follow the live output:
+
+```bash
+tail -f benchmark-run.log
+```
+
+Press `Ctrl-C` to stop following the log. This does not stop the benchmark.
+
+Inspect the process using the PID printed when it started:
+
+```bash
+ps -p "$BENCHMARK_PID" -o pid,etime,state,command
+```
+
+After opening a new terminal, where `BENCHMARK_PID` is no longer defined, find either running benchmark by script name:
+
+```bash
+pgrep -fl 'bedrock_reasoning_benchmark_(anthropic|openai)\.py'
+```
+
+No matching process means both scripts have finished or the run stopped. Check the end of the log for completion or errors:
+
+```bash
+tail -n 50 benchmark-run.log
+```
+
+The Mac must remain awake and connected to the network while the benchmarks run.
+
+## Logging
+
+Every `json_contract_v5` execution creates a new UTC-stamped file in `results/`, so no run overwrites another:
+
+- `results/bedrock_reasoning_benchmark_anthropic_json_contract_v5_YYYYMMDDTHHMMSSffffffZ.json`
+- `results/bedrock_reasoning_benchmark_openai_json_contract_v5_YYYYMMDDTHHMMSSffffffZ.json`
+
+Each record also contains `run_id`, `run_started_at_utc`, `benchmark_variant`, and SHA-256 hashes of the prompt suite, answer key, and system prompt. The chart generator rejects files with different benchmark variants or artifact hashes, incomplete run matrices, duplicate combinations, or unequal provider repetition counts. When Haiku repair files are present, it requires one complete 18-call Haiku matrix per full Anthropic run and replaces the original Haiku records before analysis. By default, it combines every full result and repair file from the newest benchmark variant:
+
+```bash
+python blog/generate_blog_charts.py
+```
+
+To select result files explicitly:
+
+```bash
+python blog/generate_blog_charts.py \
+  --anthropic results/bedrock_reasoning_benchmark_anthropic_json_contract_v5_*.json \
+  --anthropic-repair results/bedrock_reasoning_repair_anthropic_json_contract_v5_*.json \
+  --openai results/bedrock_reasoning_benchmark_openai_json_contract_v5_*.json
+```
+
+## Models And Reasoning Levels
+
+The Anthropic benchmark runs:
+
+| Model            | Reasoning levels              |
+| ---------------- | ----------------------------- |
+| Claude Opus 5    | low, medium, high, xhigh, max |
+| Claude Sonnet 5  | low, medium, high, xhigh, max |
+| Claude Fable 5   | low, medium, high, xhigh, max |
+| Claude Haiku 4.5 | low, medium, high             |
+
+Opus, Sonnet, and Fable use adaptive thinking. Haiku uses extended thinking with explicit budgets.
+
+The OpenAI benchmark runs:
+
+| Model         | Reasoning levels              |
+| ------------- | ----------------------------- |
+| GPT-5.6 Sol   | low, medium, high, xhigh, max |
+| GPT-5.6 Terra | low, medium, high, xhigh, max |
+| GPT-5.6 Luna  | low, medium, high, xhigh, max |
+| GPT-5.5       | low, medium, high, xhigh      |
+
+The benchmarks intentionally start at `low`; they do not include a no-reasoning baseline.
+
+## Prompt Suite
+
+`reasoning_benchmark_prompts.json` contains six shared prompts:
+
+- `pipeline_simple`
+- `pipeline_moderate`
+- `pipeline_complex`
+- `policy`
+- `extraction`
+- `debugging`
+
+Keep this file unchanged between provider runs when comparing results.
+
+## Results And Cost Estimates
+
+Each script prints a summary and writes its full response records to a timestamped provider-specific JSON file under `results/`.
+
+- `results/bedrock_reasoning_benchmark_anthropic_<variant>_<timestamp>.json`
+- `results/bedrock_reasoning_benchmark_openai_<variant>_<timestamp>.json`
+
+OpenAI estimates use standard in-region on-demand rates from the [Amazon Bedrock pricing page](https://aws.amazon.com/bedrock/pricing/). The rates used as of 2026-08-01 are:
+
+| Model         | Input per 1M tokens | Cache write per 1M tokens | Output per 1M tokens |
+| ------------- | ------------------: | ------------------------: | -------------------: |
+| GPT-5.6 Sol   |               $5.50 |                     $6.88 |               $33.00 |
+| GPT-5.6 Terra |               $2.20 |                     $2.75 |               $13.20 |
+| GPT-5.6 Luna  |               $0.22 |                    $0.275 |                $1.32 |
+| GPT-5.5       |               $5.50 |                       N/A |               $33.00 |
+
+GPT-5.6 cache writes use the published write rates. Cache reads are charged at the base input rate, so no cache-read, batch, promotional, or commitment discount is applied. New OpenAI result records include the pricing source, pricing date, rates, and discount policy. The chart generator recalculates OpenAI costs from saved token usage using these current rates while leaving the original result files unchanged.
+
+Claude Sonnet 5 uses the announced post-promotion standard rate of $3 per million input tokens and $15 per million output tokens. AWS promotional launch pricing of $2/$10 remains in effect through August 31, 2026.
+
+Each completed call is evaluated against the separate `reasoning_benchmark_expected_answers.json` answer key. The answer key is not sent to the models. A `PASS` requires valid JSON with the exact expected values and types. The strict and recoverable evaluations retain concise mismatch details in the per-call output and saved JSON record.
+
+The answer key is independently checked by `verify_answer_key.py`. It exhaustively enumerates the moderate selection and complex worker-allocation problems, and deterministically derives the remaining answers. Both benchmark scripts run this verification automatically before their first paid request. It can also be run directly:
+
+```bash
+python verify_answer_key.py
+```
+
+Treat a passing verifier as a reproducible check, not a substitute for review: the benchmark author or a second reviewer should confirm that the reference solver faithfully represents every prompt and tie-break rule. For a decision-grade benchmark, retain that review with the prompt-suite version.
+
+Each saved record also includes `recoverable_evaluation`. It uses the same exact answer comparison after accepting either direct JSON or exactly one `json` Markdown code fence. This separates raw response-contract compliance from underlying answer correctness; it does not make fenced output a raw `PASS`.
+
+Each completed call also has one mutually exclusive `outcome`:
+
+| Outcome          | Meaning                                                                          |
+| ---------------- | -------------------------------------------------------------------------------- |
+| `strict`         | Correct answer returned as bare JSON                                             |
+| `format_only`    | Correct answer recovered from exactly one JSON code fence                        |
+| `semantic_error` | Parseable answer with values that do not match ground truth                      |
+| `policy_refusal` | Provider explicitly refused to answer                                            |
+| `truncated`      | Provider stopped at its configured token limit before returning a correct answer |
+| `malformed`      | Response could not be recovered as an answer                                     |
+| `endpoint_error` | Request ended without a model response                                           |
+
+The terminal summary reports raw JSON correctness, semantic correctness, format-only successes, wrong answers, policy refusals, truncations, malformed responses, and endpoint errors separately. Provider response status, refusal details, and token-limit stops are saved outside the answer text.
+
+Each request record also captures `request_attempts`, `retry_count`, and `retry_events`. A retry event records the retryable HTTP status code or connection/timeout error and its requested backoff duration. Request elapsed time includes retry backoff. The terminal summary reports total retries, calls that retried, and terminal endpoint errors.
+
+Cost estimates use the configured standard Amazon Bedrock on-demand rates, including published cache-write charges. They do not apply promotional, batch, or cache-read discounts. Output token counts include model reasoning tokens when the provider reports them that way.

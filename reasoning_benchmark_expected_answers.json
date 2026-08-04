@@ -1,0 +1,46 @@
+{
+  "version": 2,
+  "answers": {
+    "pipeline_simple": {
+      "total_minutes": 91,
+      "alert": true
+    },
+    "pipeline_moderate": {
+      "selected_items": ["A", "B", "C"],
+      "total_minutes": 80,
+      "total_risk_reduction": 24
+    },
+    "pipeline_complex": {
+      "extract_workers": 7,
+      "transform_workers": 1,
+      "validate_workers": 4,
+      "pipeline_minutes": 238,
+      "total_cost_dollars": 1288
+    },
+    "policy": {
+      "expedited_replacement": true,
+      "manager_review": true
+    },
+    "extraction": {
+      "incident_id": "INC-4821",
+      "root_cause_deployment": "DEP-771",
+      "customer_impact_minutes": 14,
+      "max_error_rate_in_resolution_window_pct": 1.1,
+      "resolved": false
+    },
+    "debugging": {
+      "eligible_task_ids": ["A", "C", "E"],
+      "rounded_billable_minutes": {
+        "A": 45,
+        "C": 30,
+        "E": 0
+      },
+      "final_task_cost_dollars": {
+        "A": 270,
+        "C": 360,
+        "E": 0
+      },
+      "correct_total_dollars": 630
+    }
+  }
+}

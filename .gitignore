@@ -1,0 +1,10 @@
+.env
+*.plugin
+__pycache__/
+*.pyc
+.DS_Store
+.venv/
+vendor/
+.claude/
+BLOG_POST.md
+results/
