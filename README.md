@@ -283,3 +283,24 @@ The terminal summary reports raw JSON correctness, semantic correctness, format-
 Each request record also captures `request_attempts`, `retry_count`, and `retry_events`. A retry event records the retryable HTTP status code or connection/timeout error and its requested backoff duration. Request elapsed time includes retry backoff. The terminal summary reports total retries, calls that retried, and terminal endpoint errors.
 
 Cost estimates use the configured standard Amazon Bedrock on-demand rates, including published cache-write charges. They do not apply promotional, batch, or cache-read discounts. Output token counts include model reasoning tokens when the provider reports them that way.
+
+## Reasoning Model Evaluation Checklist
+
+Choosing a reasoning model is a systems problem, not a token-price lookup. A defensible evaluation should account for all of the following:
+
+- **Ground-truth integrity.** A benchmark cannot be more reliable than its answer key. Derive expected answers deterministically where possible, test the verifier itself, document acceptable equivalents, and independently review ambiguous cases.
+- **Semantic correctness.** Determine whether the answer is actually right, not merely plausible, well written, or valid JSON.
+- **Output-contract compliance.** Measure correct-but-malformed responses separately from semantic errors. A recoverable code fence may preserve the answer while still creating integration work and production risk.
+- **Completion.** Distinguish a complete wrong answer from truncation, refusal, timeout, and endpoint failure. Each has a different cause and remedy.
+- **Gross versus productive reasoning.** Count all returned usage as consumption, but separate reasoning that produced correct answers, wrong answers, and no usable answer. Tokens spent are not necessarily tokens needed.
+- **Output-token limits.** Set a maximum loss per request. A high ceiling can accommodate difficult work, but it can also allow a failing request to consume tens of thousands of tokens before stopping.
+- **Retries.** Record attempts and cumulative latency, and assume a retry may add cost. Retry transient failures with bounded backoff; do not automatically retry deterministic client errors, truncations, or bad answers.
+- **Timeouts.** A client timeout does not prove that provider-side generation stopped or that no charge occurred. Treat usage behind timed-out requests as unknown unless the provider exposes authoritative accounting.
+- **Availability and authentication.** Track endpoint, throttling, credential, and provider errors separately from model quality. An accurate model that cannot reliably return an answer is not operationally equivalent to one that can.
+- **Latency distribution.** Averages hide long tails. Measure completion latency by task, model, effort, outcome, and attempt, then evaluate p50, p95, p99, and timeout rates at production scale.
+- **Run-to-run variability.** Repeat every model-level-task cell. One successful response cannot establish reliability, and a non-monotonic result may be sampling noise rather than a durable property.
+- **Representative workload mix.** Weight evaluation tasks according to expected production frequency and business impact. One unusually expensive optimization problem can dominate aggregate tokens and distort conclusions.
+- **Cross-model comparability.** Reasoning labels are not standardized, tokenizers differ, and provider usage fields may not be semantically identical. Compare complete task outcomes and total cost rather than treating “high” or one token as universal units.
+- **Pricing and caching assumptions.** State whether estimates use on-demand, batch, cached, promotional, or committed-use rates. Verify actual cache reads instead of assuming repeated prompts received a discount.
+- **Safety-policy behavior.** Benign tasks can still trigger provider policies depending on wording and system context. Classify refusals separately and keep the system instruction consistent across models.
+- **Model and provider drift.** Re-run the benchmark when prompts, models, endpoints, pricing, safety behavior, or provider implementations change. A routing decision is a monitored policy, not a permanent leaderboard.
