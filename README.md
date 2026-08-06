@@ -2,7 +2,7 @@
 
 This project compares reasoning-token usage, latency, and estimated on-demand cost across Anthropic Claude and OpenAI GPT models on Amazon Bedrock Mantle. Both benchmark scripts use the same six scenarios from `reasoning_benchmark_prompts.json`.
 
-Each request is billable. Review the model lists and pricing dictionaries in the scripts before running a full benchmark. The on-demand cost is estimated to be a minimum $25-$30.
+Each request is billable. Review the model lists and pricing dictionaries in the scripts before running a full benchmark. The on-demand cost is estimated to be a minimum $5-$10/complete run.
 
 ## Prerequisites
 
@@ -93,15 +93,16 @@ rsync -avz \
 On EC2, upload the completed result files to S3:
 
 ```bash
+export YOUR_S3_BUCKET=<YOUR_S3_BUCKET>
 cd ~/token_models_reasoning_demo
-aws s3 sync results/ s3://YOUR_S3_BUCKET/token_models_reasoning_demo/results/
+aws s3 sync results/ s3://$YOUR_S3_BUCKET/token_models_reasoning_demo/results/
 ```
 
 On the local Mac, download those result files from S3:
 
 ```bash
 cd /Users/garystaf/Documents/Projects/token_models_reasoning_demo
-aws s3 sync s3://YOUR_S3_BUCKET/token_models_reasoning_demo/results/ results/
+aws s3 sync s3://$YOUR_S3_BUCKET/token_models_reasoning_demo/results/ results/
 ```
 
 `aws s3 sync` copies new and changed files without deleting files that exist only at the destination.
@@ -127,7 +128,7 @@ Use `nohup` to run both benchmarks sequentially in one background process that c
 
 ```bash
 nohup sh -c '
-for run in {1..6}; do
+for run in {1..3}; do
   echo "Starting benchmark cycle $run of 3"
   python -u bedrock_reasoning_benchmark_anthropic.py
   python -u bedrock_reasoning_benchmark_openai.py
