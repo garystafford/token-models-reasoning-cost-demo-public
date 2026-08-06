@@ -28,12 +28,14 @@ OUTCOME_LABELS = {
 }
 
 
-def load_expected_answers(scenario_ids: Iterable[str]) -> dict[str, dict[str, Any]]:
+def load_expected_answers(
+    scenario_ids: Iterable[str], answer_key_path: Path = ANSWER_KEY_PATH
+) -> dict[str, dict[str, Any]]:
     """Load an answer key and ensure it covers the shared prompt suite exactly."""
     try:
-        answer_key = json.loads(ANSWER_KEY_PATH.read_text(encoding="utf-8"))
+        answer_key = json.loads(answer_key_path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
-        raise RuntimeError(f"Could not load answer key: {ANSWER_KEY_PATH}") from exc
+        raise RuntimeError(f"Could not load answer key: {answer_key_path}") from exc
 
     if answer_key.get("version") != 2:
         raise ValueError("Answer key must declare version 2.")
