@@ -176,6 +176,41 @@ tail -n 50 benchmark-run.log
 
 The Mac must remain awake and connected to the network while the benchmarks run.
 
+## Troubleshooting
+
+### Stop A Background Benchmark Loop
+
+If `BENCHMARK_PID` is still defined in the shell that started the loop, request
+a graceful stop:
+
+```bash
+kill -TERM "$BENCHMARK_PID"
+```
+
+If the loop has an active child benchmark, stop the child and the loop:
+
+```bash
+pkill -TERM -P "$BENCHMARK_PID"
+kill -TERM "$BENCHMARK_PID"
+```
+
+In a new terminal, find the running benchmark PID before stopping it:
+
+```bash
+pgrep -fl 'bedrock_.*reasoning_benchmark.*\.py'
+kill -TERM <PID>
+```
+
+Verify that no benchmark scripts remain:
+
+```bash
+pgrep -fl 'bedrock_.*reasoning_benchmark.*\.py'
+```
+
+No output means the scripts have stopped. If a process ignores the graceful
+signal, use `kill -KILL <PID>` only as a final fallback. A stopped run retains
+the timestamped JSON checkpoint containing calls completed before termination.
+
 ## Logging
 
 Every `json_contract_v5` execution creates a new UTC-stamped file in `results/`, so no run overwrites another:
