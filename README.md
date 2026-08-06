@@ -68,7 +68,7 @@ For the benchmark, I ran all test on an Amazon EC2 instance in the `us-east-1` A
 Connect to the EC2 instance:
 
 ```bash
-export IP_ADDRESS=<YOUR_EC2_IP_ADDRESS>
+export YOUR_EC2_IP_ADDRESS=<YOUR_EC2_IP_ADDRESS>
 
 ssh -i ~/.ssh/advanced-networking-cert.pem "ec2-user@${YOUR_EC2_IP_ADDRESS}"
 ```
@@ -86,7 +86,7 @@ rsync -avz \
   --exclude 'blog/' \
   --exclude '*.log' \
   -e "ssh -i ~/.ssh/advanced-networking-cert.pem" \
-  /Users/garystaf/Documents/Projects/token_models_reasoning_demo/ \
+  . \
   "ec2-user@${YOUR_EC2_IP_ADDRESS}:~/token_models_reasoning_demo/"
 ```
 
@@ -233,6 +233,34 @@ The benchmarks intentionally start at `low`; they do not include a no-reasoning 
 - `debugging`
 
 Keep this file unchanged between provider runs when comparing results.
+
+## Scientific Replication Suite
+
+The repository also includes a second, independently verified task set in the
+scientific field-research domain. It tests whether conclusions from the
+business-operations suite generalize rather than reflect one unusual prompt
+set. The six scenarios cover chemistry, genetics, stratified ecology,
+astronomy event analysis, laboratory resource allocation, and research-vessel
+scheduling, with two tasks at each difficulty level.
+
+Verify its answer key without making model requests:
+
+```bash
+python3 verify_scientific_answer_key.py
+```
+
+Run the complete scientific suite with the same provider model matrices and
+reasoning levels as the original benchmark:
+
+```bash
+python3 -u bedrock_scientific_reasoning_benchmark_anthropic.py
+python3 -u bedrock_scientific_reasoning_benchmark_openai.py
+```
+
+The scientific runners use the benchmark variant
+`scientific_field_research_v1` and separate result basenames. Analyze their
+result files as a replication set rather than mixing them into the original
+`json_contract_v5` run matrix.
 
 ## Results And Cost Estimates
 
