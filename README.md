@@ -1,6 +1,6 @@
 # Token Models Reasoning Demo
 
-This project compares reasoning-token usage, latency, and estimated on-demand cost across Anthropic Claude and OpenAI GPT models on Amazon Bedrock Mantle. Both benchmark scripts use the same six scenarios from `reasoning_benchmark_prompts.json`.
+This project compares reasoning-token usage, latency, and estimated on-demand cost across Anthropic Claude and OpenAI GPT models on Amazon Bedrock Mantle. The business-operations benchmark scripts use the same six scenarios from `operations_reasoning_benchmark_prompts.json`.
 
 Each request is billable. Review the model lists and pricing dictionaries in the scripts before running a full benchmark. The on-demand cost is estimated to be a minimum $5-$10/complete run.
 
@@ -112,8 +112,8 @@ aws s3 sync s3://$YOUR_S3_BUCKET/token_models_reasoning_demo/results/ results/
 Optional: use `time` to measure total runtime of scripts.
 
 ```bash
-time python bedrock_reasoning_benchmark_anthropic.py
-time python bedrock_reasoning_benchmark_openai.py
+time python operations_bedrock_reasoning_benchmark_anthropic.py
+time python operations_bedrock_reasoning_benchmark_openai.py
 ```
 
 Run the scripts from this project directory so their result files are written here.
@@ -130,8 +130,8 @@ Use `nohup` to run both benchmarks sequentially in one background process that c
 nohup sh -c '
 for run in {1..3}; do
   echo "Starting benchmark cycle $run of 3"
-  python -u bedrock_reasoning_benchmark_anthropic.py
-  python -u bedrock_reasoning_benchmark_openai.py
+  python -u operations_bedrock_reasoning_benchmark_anthropic.py
+  python -u operations_bedrock_reasoning_benchmark_openai.py
 done
 ' > benchmark.log 2>&1 &
 
@@ -165,7 +165,7 @@ ps -p "$BENCHMARK_PID" -o pid,etime,state,command
 After opening a new terminal, where `BENCHMARK_PID` is no longer defined, find either running benchmark by script name:
 
 ```bash
-pgrep -fl 'bedrock_reasoning_benchmark_(anthropic|openai)\.py'
+pgrep -fl 'operations_bedrock_reasoning_benchmark_(anthropic|openai)\.py'
 ```
 
 No matching process means both scripts have finished or the run stopped. Check the end of the log for completion or errors:
@@ -215,8 +215,8 @@ the timestamped JSON checkpoint containing calls completed before termination.
 
 Every `json_contract_v5` execution creates a new UTC-stamped file in `results/`, so no run overwrites another:
 
-- `results/bedrock_reasoning_benchmark_anthropic_json_contract_v5_YYYYMMDDTHHMMSSffffffZ.json`
-- `results/bedrock_reasoning_benchmark_openai_json_contract_v5_YYYYMMDDTHHMMSSffffffZ.json`
+- `results/operations_bedrock_reasoning_benchmark_anthropic_json_contract_v5_YYYYMMDDTHHMMSSffffffZ.json`
+- `results/operations_bedrock_reasoning_benchmark_openai_json_contract_v5_YYYYMMDDTHHMMSSffffffZ.json`
 
 Each record also contains `run_id`, `run_started_at_utc`, `benchmark_variant`, and SHA-256 hashes of the prompt suite, answer key, and system prompt. The chart generator rejects files with different benchmark variants or artifact hashes, incomplete run matrices, duplicate combinations, or unequal provider repetition counts. When Haiku repair files are present, it requires one complete 18-call Haiku matrix per full Anthropic run and replaces the original Haiku records before analysis. By default, it combines every full result and repair file from the newest benchmark variant:
 
@@ -228,9 +228,9 @@ To select result files explicitly:
 
 ```bash
 python blog/generate_blog_charts.py \
-  --anthropic results/bedrock_reasoning_benchmark_anthropic_json_contract_v5_*.json \
-  --anthropic-repair results/bedrock_reasoning_repair_anthropic_json_contract_v5_*.json \
-  --openai results/bedrock_reasoning_benchmark_openai_json_contract_v5_*.json
+  --anthropic results/operations_bedrock_reasoning_benchmark_anthropic_json_contract_v5_*.json \
+  --anthropic-repair results/operations_bedrock_reasoning_repair_anthropic_json_contract_v5_*.json \
+  --openai results/operations_bedrock_reasoning_benchmark_openai_json_contract_v5_*.json
 ```
 
 ## Models And Reasoning Levels
@@ -259,7 +259,7 @@ The benchmarks intentionally start at `low`; they do not include a no-reasoning 
 
 ## Prompt Suite
 
-`reasoning_benchmark_prompts.json` contains six shared prompts:
+`operations_reasoning_benchmark_prompts.json` contains six shared prompts:
 
 - `pipeline_simple`
 - `pipeline_moderate`
@@ -282,15 +282,15 @@ scheduling, with two tasks at each difficulty level.
 Verify its answer key without making model requests:
 
 ```bash
-python3 verify_scientific_answer_key.py
+python3 scientific_verify_answer_key.py
 ```
 
 Run the complete scientific suite with the same provider model matrices and
 reasoning levels as the original benchmark:
 
 ```bash
-python3 -u bedrock_scientific_reasoning_benchmark_anthropic.py
-python3 -u bedrock_scientific_reasoning_benchmark_openai.py
+python3 -u scientific_bedrock_reasoning_benchmark_anthropic.py
+python3 -u scientific_bedrock_reasoning_benchmark_openai.py
 ```
 
 The scientific runners use the benchmark variant
@@ -302,8 +302,10 @@ result files as a replication set rather than mixing them into the original
 
 Each script prints a summary and writes its full response records to a timestamped provider-specific JSON file under `results/`.
 
-- `results/bedrock_reasoning_benchmark_anthropic_<variant>_<timestamp>.json`
-- `results/bedrock_reasoning_benchmark_openai_<variant>_<timestamp>.json`
+- `results/operations_bedrock_reasoning_benchmark_anthropic_<variant>_<timestamp>.json`
+- `results/operations_bedrock_reasoning_benchmark_openai_<variant>_<timestamp>.json`
+- `results/scientific_bedrock_reasoning_benchmark_anthropic_<variant>_<timestamp>.json`
+- `results/scientific_bedrock_reasoning_benchmark_openai_<variant>_<timestamp>.json`
 
 OpenAI estimates use standard in-region on-demand rates from the [Amazon Bedrock pricing page](https://aws.amazon.com/bedrock/pricing/). The rates used as of 2026-08-01 are:
 
@@ -318,12 +320,12 @@ GPT-5.6 cache writes use the published write rates. Cache reads are charged at t
 
 Claude Sonnet 5 uses the announced post-promotion standard rate of $3 per million input tokens and $15 per million output tokens. AWS promotional launch pricing of $2/$10 remains in effect through August 31, 2026.
 
-Each completed call is evaluated against the separate `reasoning_benchmark_expected_answers.json` answer key. The answer key is not sent to the models. A `PASS` requires valid JSON with the exact expected values and types. The strict and recoverable evaluations retain concise mismatch details in the per-call output and saved JSON record.
+Each completed call is evaluated against the answer key for its suite (`operations_reasoning_benchmark_expected_answers.json` or `scientific_reasoning_benchmark_expected_answers.json`). The answer key is not sent to the models. A `PASS` requires valid JSON with the exact expected values and types. The strict and recoverable evaluations retain concise mismatch details in the per-call output and saved JSON record.
 
-The answer key is independently checked by `verify_answer_key.py`. It exhaustively enumerates the moderate selection and complex worker-allocation problems, and deterministically derives the remaining answers. Both benchmark scripts run this verification automatically before their first paid request. It can also be run directly:
+The business-operations answer key is independently checked by `operations_verify_answer_key.py`. It exhaustively enumerates the moderate selection and complex worker-allocation problems, and deterministically derives the remaining answers. Both benchmark scripts run their suite's verification automatically before their first paid request. It can also be run directly:
 
 ```bash
-python verify_answer_key.py
+python operations_verify_answer_key.py
 ```
 
 Treat a passing verifier as a reproducible check, not a substitute for review: the benchmark author or a second reviewer should confirm that the reference solver faithfully represents every prompt and tie-break rule. For a decision-grade benchmark, retain that review with the prompt-suite version.

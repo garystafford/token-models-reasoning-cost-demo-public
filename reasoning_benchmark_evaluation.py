@@ -2,11 +2,14 @@
 
 import json
 import re
+from decimal import Decimal
 from pathlib import Path
 from typing import Any, Iterable
 
 
-ANSWER_KEY_PATH = Path(__file__).with_name("reasoning_benchmark_expected_answers.json")
+ANSWER_KEY_PATH = Path(__file__).with_name(
+    "operations_reasoning_benchmark_expected_answers.json"
+)
 FENCED_JSON_PATTERN = re.compile(r"```json\s*(.*?)\s*```", re.IGNORECASE | re.DOTALL)
 OUTCOME_ORDER = (
     "strict",
@@ -29,13 +32,16 @@ OUTCOME_LABELS = {
 
 
 def load_expected_answers(
-    scenario_ids: Iterable[str], answer_key_path: Path = ANSWER_KEY_PATH
+    scenario_ids: Iterable[str], answer_key_path: Path | None = None
 ) -> dict[str, dict[str, Any]]:
     """Load an answer key and ensure it covers the shared prompt suite exactly."""
+    path = answer_key_path or ANSWER_KEY_PATH
     try:
-        answer_key = json.loads(answer_key_path.read_text(encoding="utf-8"))
+        # Keep fractional answer-key values exact. Integers remain ``int`` so
+        # they continue to express the stricter <integer> output contract.
+        answer_key = json.loads(path.read_text(encoding="utf-8"), parse_float=Decimal)
     except (OSError, json.JSONDecodeError) as exc:
-        raise RuntimeError(f"Could not load answer key: {answer_key_path}") from exc
+        raise RuntimeError(f"Could not load answer key: {path}") from exc
 
     if answer_key.get("version") != 2:
         raise ValueError("Answer key must declare version 2.")
@@ -64,8 +70,29 @@ def load_expected_answers(
     return answers
 
 
+def _is_json_number(value: Any) -> bool:
+    """Return whether a value is a JSON number, excluding JSON booleans."""
+    return type(value) in (int, float, Decimal)
+
+
+def _load_json(text: str) -> Any:
+    """Parse JSON while preserving the exact value of fractional numbers."""
+    return json.loads(text, parse_float=Decimal)
+
+
 def _first_json_mismatch(actual: Any, expected: Any, path: str = "$") -> str | None:
-    """Return the first strict JSON mismatch, or None when values are equal."""
+    """Return the first JSON-contract mismatch, or None when values are equal.
+
+    Answer-key integers represent <integer> fields and therefore retain their
+    exact JSON type. Fractional answer-key values represent <number> fields;
+    those accept numerically equal integer or decimal JSON spellings, such as
+    ``2`` and ``2.0``.
+    """
+    if type(expected) in (float, Decimal) and _is_json_number(actual):
+        if Decimal(str(actual)) != Decimal(str(expected)):
+            return f"{path}: expected {expected!r}, got {actual!r}"
+        return None
+
     if type(actual) is not type(expected):
         return (
             f"{path}: expected {type(expected).__name__}, "
@@ -113,7 +140,7 @@ def evaluate_answer(
 ) -> dict[str, Any]:
     """Strictly compare one required-JSON response to its expected answer."""
     try:
-        actual_answer = json.loads(answer_text)
+        actual_answer = _load_json(answer_text)
     except json.JSONDecodeError as exc:
         return {
             "status": "invalid_json",
@@ -137,7 +164,7 @@ def evaluate_recoverable_answer(
     ```json fenced block. It is not a permissive parser for arbitrary prose.
     """
     try:
-        actual_answer = json.loads(answer_text)
+        actual_answer = _load_json(answer_text)
         response_format = "bare_json"
     except json.JSONDecodeError:
         fenced_blocks = FENCED_JSON_PATTERN.findall(answer_text)
@@ -149,7 +176,7 @@ def evaluate_recoverable_answer(
                 "response_format": None,
             }
         try:
-            actual_answer = json.loads(fenced_blocks[0])
+            actual_answer = _load_json(fenced_blocks[0])
         except json.JSONDecodeError as exc:
             return {
                 "status": "not_recoverable",

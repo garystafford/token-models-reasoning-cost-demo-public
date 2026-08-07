@@ -2,8 +2,7 @@
 """
 Cycles through GPT-5.6 Sol, Terra, Luna, and GPT-5.5 on Amazon Bedrock across
 their supported reasoning-effort levels, running a shared six-scenario prompt
-suite at each level and tracking prompt-cache hits via a per-model
-prompt_cache_key.
+suite at each level with prompt caching disabled.
 
 Note: These models are served via the OpenAI-compatible Responses API on the
 bedrock-mantle endpoint, not the native bedrock-runtime InvokeModel API.
@@ -38,7 +37,7 @@ from reasoning_benchmark_pricing import (
     estimate_openai_standard_cost,
     openai_pricing_metadata,
 )
-from verify_answer_key import verify_answer_key
+from operations_verify_answer_key import verify_answer_key
 
 # --- Configuration -----------------------------------------------------
 
@@ -47,13 +46,13 @@ SCENARIO_WIDTH = 18
 OUTCOME_WIDTH = 14
 BENCHMARK_VARIANT = "json_contract_v5"
 RESULTS_DIR = Path(__file__).with_name("results")
-RESULTS_BASENAME = "bedrock_reasoning_benchmark_openai"
+RESULTS_BASENAME = "operations_bedrock_reasoning_benchmark_openai"
 
 # Keep this contract identical in the Anthropic benchmark. The user prompt still
 # defines each task's JSON shape; this stable instruction defines the response
 # boundary for every scenario and effort level.
 SYSTEM_PROMPT = """This is a controlled benchmark of benign, self-contained
-business-operations reasoning. The user tasks may involve workflow mathematics,
+operations reasoning. The user tasks may involve workflow mathematics,
 scheduling, policy application, incident fact extraction, or small code
 corrections. They do not ask you to interact with systems, retrieve data, or
 take action outside the supplied text.
@@ -75,7 +74,9 @@ MODEL_EFFORTS = {
     "openai.gpt-5.5": ("low", "medium", "high", "xhigh"),
 }
 
-PROMPT_SUITE_PATH = Path(__file__).with_name("reasoning_benchmark_prompts.json")
+PROMPT_SUITE_PATH = Path(__file__).with_name(
+    "operations_reasoning_benchmark_prompts.json"
+)
 
 
 def load_prompts() -> tuple[tuple[str, str], ...]:
@@ -187,11 +188,6 @@ def call_model(
         "input": prompt,
         "instructions": SYSTEM_PROMPT,
         "reasoning": {"effort": effort},
-        # Grouping cache key by model (not effort) so repeated calls to the
-        # same model — across different effort levels, since the prompt text
-        # itself doesn't change — share a cache lineage and can hit on the
-        # common prompt prefix.
-        "prompt_cache_key": f"reasoning-benchmark-{model}",
     }
 
     retry_events = []
@@ -313,12 +309,11 @@ def extract_response_metadata(response_json: dict) -> dict:
 
 
 def extract_usage(response_json: dict) -> dict:
-    """Pull input/reasoning/output/cached token counts out of a Responses API usage block.
+    """Pull input, reasoning, and output counts from a cold-cache response.
 
     Typical shape:
         "usage": {
             "input_tokens": ...,
-            "input_tokens_details": {"cached_tokens": ...},
             "output_tokens": ...,
             "output_tokens_details": {"reasoning_tokens": ...},
             "total_tokens": ...
@@ -327,13 +322,16 @@ def extract_usage(response_json: dict) -> dict:
     usage = response_json.get("usage", {})
     input_details = usage.get("input_tokens_details", {}) or {}
     output_details = usage.get("output_tokens_details", {}) or {}
-
-    cached_tokens = input_details.get("cached_tokens")
+    cache_write_tokens = input_details.get("cache_write_tokens") or 0
+    cached_tokens = input_details.get("cached_tokens") or 0
+    if cache_write_tokens or cached_tokens:
+        raise RuntimeError(
+            "Prompt caching was disabled, but the OpenAI response reported "
+            f"{cache_write_tokens} cache-write and {cached_tokens} cache-read tokens."
+        )
 
     return {
         "input_tokens": usage.get("input_tokens"),
-        "cached_tokens": cached_tokens,
-        "cache_hit": bool(cached_tokens) if cached_tokens is not None else None,
         "reasoning_tokens": output_details.get("reasoning_tokens"),
         "output_tokens": usage.get("output_tokens"),
         "total_tokens": usage.get("total_tokens"),
@@ -346,8 +344,7 @@ def calculate_cost(model: str, usage: dict) -> float | None:
 
     output_tokens as returned by the Responses API already includes
     reasoning tokens (they're billed at the output rate), so no separate
-    line item is needed for reasoning. Cache reads are deliberately charged
-    at the normal input rate to avoid assuming prompt-cache discounts.
+    line item is needed for reasoning.
     """
     return estimate_openai_standard_cost(model, usage)
 
@@ -438,7 +435,6 @@ def main():
                     )
                     print(
                         f"Tokens — input: {usage['input_tokens']}  "
-                        f"cached: {usage['cached_tokens']}  "
                         f"reasoning: {usage['reasoning_tokens']}  "
                         f"output: {usage['output_tokens']}  "
                         f"total: {usage['total_tokens']}"
@@ -582,7 +578,7 @@ def main():
     )
     header = (
         f"{'SCENARIO':{SCENARIO_WIDTH}s} | {'MODEL':30s} | {'EFFORT':7s} | {'TIME':>{time_width}s} | {'IN':>6s} | "
-        f"{'CACHED':>6s} | {'REASON':>7s} | {'OUT':>6s} | {'TOTAL':>6s} | {'COST':>9s} | {'OUTCOME':{OUTCOME_WIDTH}s}"
+        f"{'REASON':>7s} | {'OUT':>6s} | {'TOTAL':>6s} | {'COST':>9s} | {'OUTCOME':{OUTCOME_WIDTH}s}"
     )
     print(header)
     print("-" * len(header))
@@ -603,7 +599,7 @@ def main():
             result_str = outcome_label(r["outcome"])
             print(
                 f"{r['scenario']:{SCENARIO_WIDTH}s} | {r['model']:30s} | {r['effort']:7s} | "
-                f"{elapsed_str:>{time_width}s} | {str(u['input_tokens']):>6s} | {str(u['cached_tokens']):>6s} "
+                f"{elapsed_str:>{time_width}s} | {str(u['input_tokens']):>6s} "
                 f"| {str(u['reasoning_tokens']):>7s} "
                 f"| {str(u['output_tokens']):>6s} | {str(u['total_tokens']):>6s} | {cost_str:>9s} | {result_str:{OUTCOME_WIDTH}s}"
             )
@@ -633,10 +629,7 @@ def main():
         f"{credential_retried_calls}/{len(results)} calls"
     )
     print(f"ENDPOINT ERRORS: {outcome_counts['endpoint_error']}/{len(results)}")
-    print(
-        "(Cost uses standard Bedrock on-demand rates, with no promotional or "
-        "prompt-cache discounts.)"
-    )
+    print("(Cost uses standard Bedrock on-demand rates with prompt caching disabled.)")
 
     write_results_checkpoint(results_path, results)
     print(f"\nFull results written to {results_path}")

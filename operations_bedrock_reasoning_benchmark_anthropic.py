@@ -38,7 +38,7 @@ from reasoning_benchmark_evaluation import (
     load_expected_answers,
     outcome_label,
 )
-from verify_answer_key import verify_answer_key
+from operations_verify_answer_key import verify_answer_key
 
 # --- Configuration -----------------------------------------------------
 
@@ -48,14 +48,14 @@ SCENARIO_WIDTH = 18
 OUTCOME_WIDTH = 14
 BENCHMARK_VARIANT = "json_contract_v5"
 RESULTS_DIR = Path(__file__).with_name("results")
-RESULTS_BASENAME = "bedrock_reasoning_benchmark_anthropic"
+RESULTS_BASENAME = "operations_bedrock_reasoning_benchmark_anthropic"
 REPAIR_RESULTS_BASENAME = "bedrock_reasoning_repair_anthropic"
 
 # Keep this contract identical in the OpenAI benchmark. The user prompt still
 # defines each task's JSON shape; this stable instruction defines the response
 # boundary for every scenario and effort level.
 SYSTEM_PROMPT = """This is a controlled benchmark of benign, self-contained
-business-operations reasoning. The user tasks may involve workflow mathematics,
+operations reasoning. The user tasks may involve workflow mathematics,
 scheduling, policy application, incident fact extraction, or small code
 corrections. They do not ask you to interact with systems, retrieve data, or
 take action outside the supplied text.
@@ -97,35 +97,32 @@ MAX_TOKENS_BY_MODEL = {
     "anthropic.claude-haiku-4-5": 32_768,
 }
 
-# Standard Amazon Bedrock on-demand pricing (USD per 1M tokens). Cache writes
-# use the published 5-minute write rate. Cache reads are charged at the normal
-# input-token rate so the estimate does not apply a cache-read discount.
+# Standard Amazon Bedrock on-demand pricing (USD per 1M tokens), with prompt
+# caching disabled.
 # Sonnet uses the announced $3/$15 standard rates that take effect after its
 # $2/$10 launch promotion ends on August 31, 2026.
 PRICING = {
     "anthropic.claude-fable-5": {
         "input": 10.00,
-        "cache_write": 12.50,
         "output": 50.00,
     },
     "anthropic.claude-opus-5": {
         "input": 5.00,
-        "cache_write": 6.25,
         "output": 25.00,
     },
     "anthropic.claude-sonnet-5": {
         "input": 3.00,
-        "cache_write": 3.75,
         "output": 15.00,
     },
     "anthropic.claude-haiku-4-5": {
         "input": 1.00,
-        "cache_write": 1.25,
         "output": 5.00,
     },
 }
 
-PROMPT_SUITE_PATH = Path(__file__).with_name("reasoning_benchmark_prompts.json")
+PROMPT_SUITE_PATH = Path(__file__).with_name(
+    "operations_reasoning_benchmark_prompts.json"
+)
 
 
 def load_prompts() -> tuple[tuple[str, str], ...]:
@@ -379,34 +376,28 @@ def extract_response_metadata(response_json: dict) -> dict:
 
 
 def extract_usage(response_json: dict) -> dict:
-    """Pull billable token counts out of an Anthropic Messages API usage block.
+    """Pull input, reasoning, and output counts from a cold-cache response.
 
     Typical shape:
         "usage": {
             "input_tokens": ...,
-            "cache_creation_input_tokens": ...,
-            "cache_read_input_tokens": ...,
             "output_tokens": ...,
         }
     """
     usage = response_json.get("usage", {})
     output_details = usage.get("output_tokens_details", {}) or {}
     input_tokens = usage.get("input_tokens")
-    cache_creation_tokens = usage.get("cache_creation_input_tokens")
-    cached_tokens = usage.get("cache_read_input_tokens")
     output_tokens = usage.get("output_tokens")
-    usage_values = (
-        input_tokens,
-        cache_creation_tokens,
-        cached_tokens,
-        output_tokens,
-    )
+    cache_creation_tokens = usage.get("cache_creation_input_tokens") or 0
+    cached_tokens = usage.get("cache_read_input_tokens") or 0
+    if cache_creation_tokens or cached_tokens:
+        raise RuntimeError(
+            "Prompt caching was disabled, but the Anthropic response reported "
+            f"{cache_creation_tokens} cache-write and {cached_tokens} cache-read tokens."
+        )
 
     return {
         "input_tokens": input_tokens,
-        "cache_creation_tokens": cache_creation_tokens,
-        "cached_tokens": cached_tokens,
-        "cache_hit": bool(cached_tokens) if cached_tokens is not None else None,
         # Thinking is billed as output; retain the separate count when the
         # Messages API includes it in either supported usage shape.
         "reasoning_tokens": (
@@ -416,8 +407,8 @@ def extract_usage(response_json: dict) -> dict:
         ),
         "output_tokens": output_tokens,
         "total_tokens": (
-            sum(value or 0 for value in usage_values)
-            if any(value is not None for value in usage_values)
+            sum(value or 0 for value in (input_tokens, output_tokens))
+            if input_tokens is not None or output_tokens is not None
             else None
         ),
         "raw_usage": usage,  # keep the full block too, in case shape differs
@@ -427,22 +418,17 @@ def extract_usage(response_json: dict) -> dict:
 def calculate_cost(model: str, usage: dict) -> float | None:
     """Estimate USD cost for one call at standard on-demand token rates.
 
-    Claude bills extended/adaptive-thinking tokens as output tokens. Cache
-    writes use the published 5-minute rate; reads use the normal input rate so
-    this estimate does not assume prompt-cache discounts.
+    Claude bills extended/adaptive-thinking tokens as output tokens.
     """
     rates = PRICING.get(model)
     if rates is None:
         return None
 
     input_tokens = usage.get("input_tokens") or 0
-    cache_creation_tokens = usage.get("cache_creation_tokens") or 0
-    cached_tokens = usage.get("cached_tokens") or 0
     output_tokens = usage.get("output_tokens") or 0
 
     cost = (
-        ((input_tokens + cached_tokens) / 1_000_000) * rates["input"]
-        + (cache_creation_tokens / 1_000_000) * rates["cache_write"]
+        (input_tokens / 1_000_000) * rates["input"]
         + (output_tokens / 1_000_000) * rates["output"]
     )
     return round(cost, 6)
@@ -564,8 +550,6 @@ def main():
                     )
                     print(
                         f"Tokens — input: {usage['input_tokens']}  "
-                        f"cache write: {usage['cache_creation_tokens']}  "
-                        f"cache read: {usage['cached_tokens']}  "
                         f"reasoning: {usage['reasoning_tokens']}  "
                         f"output: {usage['output_tokens']}  "
                         f"total: {usage['total_tokens']}"
@@ -720,7 +704,7 @@ def main():
     )
     header = (
         f"{'SCENARIO':{SCENARIO_WIDTH}s} | {'MODEL':30s} | {'LEVEL':7s} | {'TIME':>{time_width}s} | {'IN':>6s} | "
-        f"{'CACHE-W':>7s} | {'CACHE-R':>7s} | {'OUT':>6s} | {'TOTAL':>6s} | {'COST':>9s} | {'OUTCOME':{OUTCOME_WIDTH}s}"
+        f"{'OUT':>6s} | {'TOTAL':>6s} | {'COST':>9s} | {'OUTCOME':{OUTCOME_WIDTH}s}"
     )
     print(header)
     print("-" * len(header))
@@ -742,8 +726,6 @@ def main():
             print(
                 f"{r['scenario']:{SCENARIO_WIDTH}s} | {r['model']:30s} | {r['effort']:7s} | "
                 f"{elapsed_str:>{time_width}s} | {str(u['input_tokens']):>6s} "
-                f"| {str(u['cache_creation_tokens']):>7s} "
-                f"| {str(u['cached_tokens']):>7s} "
                 f"| {str(u['output_tokens']):>6s} | {str(u['total_tokens']):>6s} | {cost_str:>9s} | {result_str:{OUTCOME_WIDTH}s}"
             )
     print("-" * len(header))
@@ -772,10 +754,7 @@ def main():
         f"{credential_retried_calls}/{len(results)} calls"
     )
     print(f"ENDPOINT ERRORS: {outcome_counts['endpoint_error']}/{len(results)}")
-    print(
-        "(Cost uses standard Bedrock on-demand rates, including cache-write "
-        "charges, with no promotional or cache-read discounts.)"
-    )
+    print("(Cost uses standard Bedrock on-demand rates with prompt caching disabled.)")
 
     write_results_checkpoint(results_path, results)
     print(f"\nFull results written to {results_path}")

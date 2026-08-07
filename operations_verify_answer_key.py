@@ -10,7 +10,9 @@ from pathlib import Path
 from typing import Any
 
 
-ANSWER_KEY_PATH = Path(__file__).with_name("reasoning_benchmark_expected_answers.json")
+ANSWER_KEY_PATH = Path(__file__).with_name(
+    "operations_reasoning_benchmark_expected_answers.json"
+)
 
 
 def solve_pipeline_simple() -> dict[str, Any]:

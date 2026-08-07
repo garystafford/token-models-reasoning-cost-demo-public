@@ -1,0 +1,36 @@
+{
+  "version": 2,
+  "domain": "scientific_field_research",
+  "scenarios": [
+    {
+      "id": "chemistry_mixture",
+      "difficulty": "simple",
+      "prompt": "A laboratory combines 200 mL of a 12 mg/L solution with 300 mL of a 4 mg/L solution. Assume volumes are additive. A blank measurement shows a positive bias of 0.2 mg/L, which must be subtracted from the mixed concentration.\n\nA contamination flag is raised only when the blank-corrected concentration is strictly greater than 7.0 mg/L. Calculate the corrected concentration and apply the flag rule.\n\nReturn one valid JSON object only, with no Markdown or explanatory prose:\n{\"corrected_concentration_mg_per_l\": <number>, \"contamination_flag\": <true or false>}"
+    },
+    {
+      "id": "genetics_cross",
+      "difficulty": "simple",
+      "prompt": "At one autosomal locus, two heterozygous organisms (Aa and Aa) are crossed. Offspring inherit one allele from each parent, and the four allele combinations AA, Aa, aA, and aa are equally likely. The recessive phenotype appears only for genotype aa.\n\nThe study expects 128 offspring. A follow-up cohort is required when the expected number with the recessive phenotype is at least 30. Calculate the recessive-phenotype probability and expected count, then apply the follow-up rule.\n\nReturn one valid JSON object only, with no Markdown or explanatory prose. Express the probability as a decimal number:\n{\"recessive_probability\": <number>, \"expected_recessive_offspring\": <integer>, \"follow_up_required\": <true or false>}"
+    },
+    {
+      "id": "ecology_stratified",
+      "difficulty": "moderate",
+      "prompt": "An ecological survey divides a 240-hectare reserve into three habitat strata. Use the habitat-area weights, not the number of survey plots, to calculate the reserve-wide density.\n\n| Habitat | Area weight | Mean observed density (animals/ha) |\n| North woodland | 0.40 | 8.5 |\n| South grassland | 0.35 | 11.0 |\n| Marsh | 0.25 | 6.0 |\n\nThe estimated population is the weighted density multiplied by 240 hectares. Management review is required when either the estimated population is below 2,000 animals or any habitat's mean density is below 6.5 animals/ha.\n\nReturn one valid JSON object only, with no Markdown or explanatory prose:\n{\"weighted_density_per_ha\": <number>, \"estimated_population\": <integer>, \"management_review\": <true or false>}"
+    },
+    {
+      "id": "astronomy_transit",
+      "difficulty": "moderate",
+      "prompt": "Analyze the observation records using only the rules and data below.\n\nTransit-candidate rules:\n1. The observation must target star K-17.\n2. Its midpoint must be no more than 12 minutes from the predicted 03:00 UTC midpoint.\n3. Flux depth, calculated as (baseline flux - minimum flux) / baseline flux * 100, must be at least 1.5%.\n4. If multiple observations qualify, choose the one whose midpoint is closest to 03:00 UTC. If that still ties, choose the one with the greater flux depth.\n\nObservations:\n- OBS-41, K-17, 02:34-03:14 UTC, baseline 50,000, minimum 49,100\n- OBS-44, K-17, 02:46-03:20 UTC, baseline 48,000, minimum 47,040\n- OBS-47, M-22, 02:40-03:18 UTC, baseline 60,000, minimum 58,200\n\nRecovery rule:\n- The selected event is recovered only if every follow-up flux sample collected during the first 20 minutes after its observation ends is within 0.5% of its baseline flux. A difference exactly equal to 0.5% is allowed.\n\nFollow-up samples for OBS-44:\n- 03:25 UTC: 47,900\n- 03:34 UTC: 47,700\n- 03:42 UTC: 47,950\n\nReturn one valid JSON object only, with no Markdown or explanatory prose:\n{\"selected_observation\": \"<observation id>\", \"duration_minutes\": <integer>, \"flux_depth_pct\": <number>, \"recovered\": <true or false>}"
+    },
+    {
+      "id": "lab_allocation",
+      "difficulty": "complex",
+      "prompt": "Allocate exactly 12 whole instrument blocks among spectroscopy (s), microscopy (m), and sequencing (q). Each method must receive at least 2 blocks, and sequencing must receive at least 3 blocks.\n\nFor an allocation, the study's variance proxy is:\n120 / s + 90 / m + 60 / q\n\nChoose the valid allocation with the lowest variance proxy. If variance proxies tie, choose the allocation with more sequencing blocks; if still tied, choose the one with more microscopy blocks.\n\nReturn one valid JSON object only, with no Markdown or explanatory prose:\n{\"spectroscopy_blocks\": <integer>, \"microscopy_blocks\": <integer>, \"sequencing_blocks\": <integer>, \"variance_proxy\": <number>}"
+    },
+    {
+      "id": "vessel_schedule",
+      "difficulty": "complex",
+      "prompt": "A research vessel leaves base at 06:00 UTC and must return by 12:00 UTC. It may visit each sampling site at most once. At each site, sampling must start no earlier than the window start and finish no later than the window end; the vessel may wait if it arrives early. The route must include deep-water site C.\n\n| Site | Sampling minutes | Valid sampling window (UTC) | Priority points |\n| A | 50 | 06:00-09:00 | 7 |\n| B | 60 | 07:30-11:00 | 9 |\n| C | 70 | 08:30-12:30 | 12 |\n| D | 45 | 06:00-10:00 | 6 |\n\nSymmetric travel times in minutes:\n- Base-A 30, Base-B 45, Base-C 60, Base-D 50\n- A-B 25, A-C 40, A-D 35\n- B-C 30, B-D 20\n- C-D 25\n\nChoose the valid route with the greatest total priority. If priorities tie, choose the route that returns to base earliest. If still tied, choose the lexicographically smallest site order.\n\nReturn one valid JSON object only, with no Markdown or explanatory prose:\n{\"site_order\": [\"<site>\", \"...\"], \"total_priority\": <integer>, \"return_time_utc\": \"HH:MM\"}"
+    }
+  ]
+}

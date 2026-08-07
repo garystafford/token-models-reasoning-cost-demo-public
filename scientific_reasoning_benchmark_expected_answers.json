@@ -1,0 +1,37 @@
+{
+  "version": 2,
+  "domain": "scientific_field_research",
+  "answers": {
+    "chemistry_mixture": {
+      "corrected_concentration_mg_per_l": 7.0,
+      "contamination_flag": false
+    },
+    "genetics_cross": {
+      "recessive_probability": 0.25,
+      "expected_recessive_offspring": 32,
+      "follow_up_required": true
+    },
+    "ecology_stratified": {
+      "weighted_density_per_ha": 8.75,
+      "estimated_population": 2100,
+      "management_review": true
+    },
+    "astronomy_transit": {
+      "selected_observation": "OBS-44",
+      "duration_minutes": 34,
+      "flux_depth_pct": 2.0,
+      "recovered": false
+    },
+    "lab_allocation": {
+      "spectroscopy_blocks": 5,
+      "microscopy_blocks": 4,
+      "sequencing_blocks": 3,
+      "variance_proxy": 66.5
+    },
+    "vessel_schedule": {
+      "site_order": ["A", "B", "C"],
+      "total_priority": 28,
+      "return_time_utc": "11:25"
+    }
+  }
+}
