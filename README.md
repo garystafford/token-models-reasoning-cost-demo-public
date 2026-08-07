@@ -6,7 +6,7 @@ This project compares reasoning-token usage, latency, and estimated on-demand co
 
 All requests is billable. Review the Amazon Bedrock Mantle public on-demand pricing before running a full benchmark.
 
-![Final Results](./charts/model-effort-cost-scientific.svg)
+![Final Results](./charts/model-effort-cost-combined-linkedin.svg)
 
 ## Task Sets
 

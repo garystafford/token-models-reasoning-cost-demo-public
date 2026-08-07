@@ -1,0 +1,154 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080" role="img" aria-labelledby="title desc">
+<title id="title">Operations and scientific reasoning: cost by model and effort</title>
+<desc id="desc">A 16:9 pair of logarithmic dot plots comparing model and reasoning-effort cost on separate Operations and Scientific six-task benchmark suites.</desc>
+<style>
+  .title { fill: #10283f; font-family: Arial, sans-serif; font-size: 27px; font-weight: 700; }
+  .subtitle { fill: #526574; font-family: Arial, sans-serif; font-size: 14px; font-weight: 400; }
+  .section { fill: #10283f; font-family: Arial, sans-serif; font-size: 14px; font-weight: 600; }
+  .label { fill: #334b5d; font-family: Arial, sans-serif; font-size: 13px; font-weight: 400; }
+  .rank-label { fill: #10283f; font-family: Arial, sans-serif; font-size: 14px; font-weight: 700; }
+  .small { fill: #526574; font-family: Arial, sans-serif; font-size: 11px; font-weight: 400; }
+  .value { fill: #10283f; font-family: Arial, sans-serif; font-size: 12px; font-weight: 600; }
+  .rank-value { fill: #10283f; font-family: Arial, sans-serif; font-size: 13px; font-weight: 700; }
+  .axis { stroke: #9aaab5; stroke-width: 1; }
+  .grid { stroke: #d6dee2; stroke-width: 1; }
+</style>
+<rect width="1920" height="1080" fill="#ffffff"/>
+<style>.title { font-size: 42px; } .subtitle { font-size: 20px; } .section { font-size: 22px; } .label { font-size: 20px; } .small { font-size: 17px; } .value { font-size: 19px; }</style>
+<text x="98" y="82" class="title">Operations and scientific reasoning: cost by model and effort</text>
+<text x="98" y="120" class="subtitle">Mean estimated cost for six tasks. The task sets remain separate; logarithmic scales are shared.</text>
+<text x="390" y="180" class="section">Operations tasks · 6 tasks · 12 runs</text>
+<text x="1110" y="180" class="section">Scientific tasks · 6 tasks · 6 runs</text>
+<rect x="82" y="218" width="1740" height="72" rx="8" fill="#f4f7f9"/>
+<rect x="82" y="400" width="1740" height="72" rx="8" fill="#f4f7f9"/>
+<rect x="82" y="582" width="1740" height="72" rx="8" fill="#f4f7f9"/>
+<rect x="82" y="764" width="1740" height="72" rx="8" fill="#f4f7f9"/>
+<line x1="390.0" y1="202" x2="390.0" y2="943" class="grid"/>
+<text x="390.0" y="979" text-anchor="middle" class="small">$0.001</text>
+<line x1="447.9" y1="202" x2="447.9" y2="943" class="grid"/>
+<text x="447.9" y="979" text-anchor="middle" class="small">$0.002</text>
+<line x1="524.5" y1="202" x2="524.5" y2="943" class="grid"/>
+<text x="524.5" y="979" text-anchor="middle" class="small">$0.005</text>
+<line x1="582.5" y1="202" x2="582.5" y2="943" class="grid"/>
+<text x="582.5" y="979" text-anchor="middle" class="small">$0.01</text>
+<line x1="640.4" y1="202" x2="640.4" y2="943" class="grid"/>
+<text x="640.4" y="979" text-anchor="middle" class="small">$0.02</text>
+<line x1="717.0" y1="202" x2="717.0" y2="943" class="grid"/>
+<text x="717.0" y="979" text-anchor="middle" class="small">$0.05</text>
+<line x1="775.0" y1="202" x2="775.0" y2="943" class="grid"/>
+<text x="775.0" y="979" text-anchor="middle" class="small">$0.10</text>
+<line x1="832.9" y1="202" x2="832.9" y2="943" class="grid"/>
+<text x="832.9" y="979" text-anchor="middle" class="small">$0.20</text>
+<line x1="909.5" y1="202" x2="909.5" y2="943" class="grid"/>
+<text x="909.5" y="979" text-anchor="middle" class="small">$0.50</text>
+<line x1="1110.0" y1="202" x2="1110.0" y2="943" class="grid"/>
+<text x="1110.0" y="979" text-anchor="middle" class="small">$0.001</text>
+<line x1="1167.9" y1="202" x2="1167.9" y2="943" class="grid"/>
+<text x="1167.9" y="979" text-anchor="middle" class="small">$0.002</text>
+<line x1="1244.5" y1="202" x2="1244.5" y2="943" class="grid"/>
+<text x="1244.5" y="979" text-anchor="middle" class="small">$0.005</text>
+<line x1="1302.5" y1="202" x2="1302.5" y2="943" class="grid"/>
+<text x="1302.5" y="979" text-anchor="middle" class="small">$0.01</text>
+<line x1="1360.4" y1="202" x2="1360.4" y2="943" class="grid"/>
+<text x="1360.4" y="979" text-anchor="middle" class="small">$0.02</text>
+<line x1="1437.0" y1="202" x2="1437.0" y2="943" class="grid"/>
+<text x="1437.0" y="979" text-anchor="middle" class="small">$0.05</text>
+<line x1="1495.0" y1="202" x2="1495.0" y2="943" class="grid"/>
+<text x="1495.0" y="979" text-anchor="middle" class="small">$0.10</text>
+<line x1="1552.9" y1="202" x2="1552.9" y2="943" class="grid"/>
+<text x="1552.9" y="979" text-anchor="middle" class="small">$0.20</text>
+<line x1="1629.5" y1="202" x2="1629.5" y2="943" class="grid"/>
+<text x="1629.5" y="979" text-anchor="middle" class="small">$0.50</text>
+<text x="98" y="265" class="label">Claude Fable 5</text>
+<circle cx="803.0" cy="258.0" r="7.5" fill="#176a5b"/>
+<rect x="809.0" y="250.5" width="15.0" height="15.0" fill="#2f6f9f"/>
+<path d="M 835.5 249.2 L 844.2 258.0 L 835.5 266.8 L 826.7 258.0 Z" fill="#c8751b"/>
+<path d="M 854.7 249.2 L 863.5 265.5 L 846.0 265.5 Z" fill="#76528e"/>
+<path d="M 901.6 248.0 L 911.1 254.9 L 907.5 266.1 L 895.7 266.1 L 892.1 254.9 Z" fill="#b34545"/>
+<circle cx="1502.1" cy="258.0" r="7.5" fill="#176a5b"/>
+<rect x="1497.1" y="250.5" width="15.0" height="15.0" fill="#2f6f9f"/>
+<path d="M 1536.2 249.2 L 1545.0 258.0 L 1536.2 266.8 L 1527.5 258.0 Z" fill="#c8751b"/>
+<path d="M 1548.8 249.2 L 1557.5 265.5 L 1540.0 265.5 Z" fill="#76528e"/>
+<path d="M 1574.2 248.0 L 1583.7 254.9 L 1580.1 266.1 L 1568.3 266.1 L 1564.7 254.9 Z" fill="#b34545"/>
+<text x="98" y="356" class="label">Claude Opus 5</text>
+<circle cx="745.7" cy="349.0" r="7.5" fill="#176a5b"/>
+<rect x="752.0" y="341.5" width="15.0" height="15.0" fill="#2f6f9f"/>
+<path d="M 785.6 340.2 L 794.4 349.0 L 785.6 357.8 L 776.9 349.0 Z" fill="#c8751b"/>
+<path d="M 804.4 340.2 L 813.2 356.5 L 795.7 356.5 Z" fill="#76528e"/>
+<path d="M 808.7 339.0 L 818.2 345.9 L 814.6 357.1 L 802.8 357.1 L 799.2 345.9 Z" fill="#b34545"/>
+<circle cx="1440.6" cy="349.0" r="7.5" fill="#176a5b"/>
+<rect x="1457.0" y="341.5" width="15.0" height="15.0" fill="#2f6f9f"/>
+<path d="M 1476.7 340.2 L 1485.4 349.0 L 1476.7 357.8 L 1467.9 349.0 Z" fill="#c8751b"/>
+<path d="M 1490.5 340.2 L 1499.2 356.5 L 1481.7 356.5 Z" fill="#76528e"/>
+<path d="M 1499.4 339.0 L 1508.9 345.9 L 1505.2 357.1 L 1493.5 357.1 L 1489.9 345.9 Z" fill="#b34545"/>
+<text x="98" y="447" class="label">Claude Sonnet 5</text>
+<circle cx="740.5" cy="440.0" r="7.5" fill="#176a5b"/>
+<rect x="801.3" y="432.5" width="15.0" height="15.0" fill="#2f6f9f"/>
+<path d="M 855.2 431.2 L 864.0 440.0 L 855.2 448.8 L 846.5 440.0 Z" fill="#c8751b"/>
+<path d="M 878.4 431.2 L 887.1 447.5 L 869.6 447.5 Z" fill="#76528e"/>
+<path d="M 918.3 430.0 L 927.8 436.9 L 924.2 448.1 L 912.4 448.1 L 908.8 436.9 Z" fill="#b34545"/>
+<circle cx="1440.3" cy="440.0" r="7.5" fill="#176a5b"/>
+<rect x="1474.3" y="432.5" width="15.0" height="15.0" fill="#2f6f9f"/>
+<path d="M 1506.7 431.2 L 1515.4 440.0 L 1506.7 448.8 L 1497.9 440.0 Z" fill="#c8751b"/>
+<path d="M 1535.4 431.2 L 1544.2 447.5 L 1526.7 447.5 Z" fill="#76528e"/>
+<path d="M 1589.7 430.0 L 1599.2 436.9 L 1595.6 448.1 L 1583.8 448.1 L 1580.2 436.9 Z" fill="#b34545"/>
+<text x="98" y="538" class="label">Claude Haiku 4.5</text>
+<circle cx="693.8" cy="531.0" r="7.5" fill="#176a5b"/>
+<rect x="713.4" y="523.5" width="15.0" height="15.0" fill="#2f6f9f"/>
+<path d="M 751.7 522.2 L 760.5 531.0 L 751.7 539.8 L 743.0 531.0 Z" fill="#c8751b"/>
+<circle cx="1421.3" cy="531.0" r="7.5" fill="#176a5b"/>
+<rect x="1424.0" y="523.5" width="15.0" height="15.0" fill="#2f6f9f"/>
+<path d="M 1462.8 522.2 L 1471.6 531.0 L 1462.8 539.8 L 1454.1 531.0 Z" fill="#c8751b"/>
+<text x="98" y="629" class="label">GPT-5.6 Sol</text>
+<circle cx="728.6" cy="622.0" r="7.5" fill="#176a5b"/>
+<rect x="728.8" y="614.5" width="15.0" height="15.0" fill="#2f6f9f"/>
+<path d="M 749.5 613.2 L 758.3 622.0 L 749.5 630.8 L 740.8 622.0 Z" fill="#c8751b"/>
+<path d="M 753.2 613.2 L 762.0 629.5 L 744.5 629.5 Z" fill="#76528e"/>
+<path d="M 772.7 612.0 L 782.2 618.9 L 778.6 630.1 L 766.9 630.1 L 763.2 618.9 Z" fill="#b34545"/>
+<circle cx="1431.7" cy="622.0" r="7.5" fill="#176a5b"/>
+<rect x="1425.5" y="614.5" width="15.0" height="15.0" fill="#2f6f9f"/>
+<path d="M 1439.5 613.2 L 1448.3 622.0 L 1439.5 630.8 L 1430.8 622.0 Z" fill="#c8751b"/>
+<path d="M 1438.8 613.2 L 1447.5 629.5 L 1430.0 629.5 Z" fill="#76528e"/>
+<path d="M 1455.9 612.0 L 1465.4 618.9 L 1461.8 630.1 L 1450.0 630.1 L 1446.4 618.9 Z" fill="#b34545"/>
+<text x="98" y="720" class="label">GPT-5.6 Terra</text>
+<circle cx="650.1" cy="713.0" r="7.5" fill="#176a5b"/>
+<rect x="658.7" y="705.5" width="15.0" height="15.0" fill="#2f6f9f"/>
+<path d="M 678.5 704.2 L 687.2 713.0 L 678.5 721.8 L 669.7 713.0 Z" fill="#c8751b"/>
+<path d="M 682.3 704.2 L 691.1 720.5 L 673.6 720.5 Z" fill="#76528e"/>
+<path d="M 719.8 703.0 L 729.3 709.9 L 725.7 721.1 L 714.0 721.1 L 710.3 709.9 Z" fill="#b34545"/>
+<circle cx="1344.9" cy="713.0" r="7.5" fill="#176a5b"/>
+<rect x="1349.5" y="705.5" width="15.0" height="15.0" fill="#2f6f9f"/>
+<path d="M 1357.1 704.2 L 1365.8 713.0 L 1357.1 721.8 L 1348.3 713.0 Z" fill="#c8751b"/>
+<path d="M 1372.3 704.2 L 1381.1 720.5 L 1363.6 720.5 Z" fill="#76528e"/>
+<path d="M 1390.4 703.0 L 1399.9 709.9 L 1396.2 721.1 L 1384.5 721.1 L 1380.9 709.9 Z" fill="#b34545"/>
+<text x="98" y="811" class="label">GPT-5.6 Luna</text>
+<circle cx="475.9" cy="804.0" r="7.5" fill="#176a5b"/>
+<rect x="477.5" y="796.5" width="15.0" height="15.0" fill="#2f6f9f"/>
+<path d="M 505.1 795.2 L 513.9 804.0 L 505.1 812.8 L 496.4 804.0 Z" fill="#c8751b"/>
+<path d="M 523.9 795.2 L 532.6 811.5 L 515.1 811.5 Z" fill="#76528e"/>
+<path d="M 540.0 794.0 L 549.5 800.9 L 545.9 812.1 L 534.1 812.1 L 530.5 800.9 Z" fill="#b34545"/>
+<circle cx="1183.1" cy="804.0" r="7.5" fill="#176a5b"/>
+<rect x="1188.9" y="796.5" width="15.0" height="15.0" fill="#2f6f9f"/>
+<path d="M 1210.0 795.2 L 1218.7 804.0 L 1210.0 812.8 L 1201.2 804.0 Z" fill="#c8751b"/>
+<path d="M 1214.6 795.2 L 1223.4 811.5 L 1205.9 811.5 Z" fill="#76528e"/>
+<path d="M 1231.2 794.0 L 1240.7 800.9 L 1237.1 812.1 L 1225.3 812.1 L 1221.7 800.9 Z" fill="#b34545"/>
+<text x="98" y="902" class="label">GPT-5.5</text>
+<circle cx="755.0" cy="895.0" r="7.5" fill="#176a5b"/>
+<rect x="777.7" y="887.5" width="15.0" height="15.0" fill="#2f6f9f"/>
+<path d="M 806.6 886.2 L 815.4 895.0 L 806.6 903.8 L 797.9 895.0 Z" fill="#c8751b"/>
+<path d="M 820.9 886.2 L 829.7 902.5 L 812.2 902.5 Z" fill="#76528e"/>
+<circle cx="1455.6" cy="895.0" r="7.5" fill="#176a5b"/>
+<rect x="1469.2" y="887.5" width="15.0" height="15.0" fill="#2f6f9f"/>
+<path d="M 1493.4 886.2 L 1502.1 895.0 L 1493.4 903.8 L 1484.6 895.0 Z" fill="#c8751b"/>
+<path d="M 1502.7 886.2 L 1511.5 902.5 L 1494.0 902.5 Z" fill="#76528e"/>
+<circle cx="390.0" cy="1050.0" r="8.3" fill="#176a5b"/>
+<text x="412" y="1056" class="small">Low</text>
+<rect x="567.7" y="1041.7" width="16.6" height="16.6" fill="#2f6f9f"/>
+<text x="598" y="1056" class="small">Medium</text>
+<path d="M 762.0 1040.3 L 771.7 1050.0 L 762.0 1059.7 L 752.3 1050.0 Z" fill="#c8751b"/>
+<text x="784" y="1056" class="small">High</text>
+<path d="M 948.0 1040.3 L 957.7 1058.3 L 938.3 1058.3 Z" fill="#76528e"/>
+<text x="970" y="1056" class="small">X-high</text>
+<path d="M 1134.0 1039.0 L 1144.5 1046.5 L 1140.5 1059.0 L 1127.5 1059.0 L 1123.5 1046.5 Z" fill="#b34545"/>
+<text x="1156" y="1056" class="small">Max</text>
+</svg>
