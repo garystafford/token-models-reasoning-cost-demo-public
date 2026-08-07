@@ -2,7 +2,9 @@
 
 This project compares reasoning-token usage, latency, and estimated on-demand cost across Anthropic Claude and OpenAI GPT models on Amazon Bedrock Mantle. The business-operations benchmark scripts use the same six scenarios from `operations_reasoning_benchmark_prompts.json`.
 
-Each request is billable. Review the model lists and pricing dictionaries in the scripts before running a full benchmark. The on-demand cost is estimated to be a minimum $5-$10/complete run.
+Each request is billable. Review the model lists and pricing dictionaries in the scripts before running a full benchmark.
+
+![Final Results](./charts/model-effort-cost-scientific.svg)
 
 ## Prerequisites
 
