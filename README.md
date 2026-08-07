@@ -1,10 +1,21 @@
 # Token Models Reasoning Demo
 
-This project compares reasoning-token usage, latency, and estimated on-demand cost across Anthropic Claude and OpenAI GPT models on Amazon Bedrock Mantle. The business-operations benchmark scripts use the same six scenarios from `operations_reasoning_benchmark_prompts.json`.
+For background, results, and detailed guidance on using this repository, see the accompanying blog post: [ValueMaxxing Reasoning Tokens: The Cost and Correctness of Frontier Models](https://garystafford.medium.com/valuemaxxing-reasoning-tokens-the-cost-and-correctness-of-frontier-models-0541d2a73778?sharedUserId=garystafford).
 
-Each request is billable. Review the model lists and pricing dictionaries in the scripts before running a full benchmark.
+This project compares reasoning-token usage, latency, and estimated on-demand cost across Anthropic Claude and OpenAI GPT models on Amazon Bedrock Mantle. It includes two independently versioned task sets: business operations and scientific field research.
+
+All requests is billable. Review the Amazon Bedrock Mantle public on-demand pricing before running a full benchmark.
 
 ![Final Results](./charts/model-effort-cost-scientific.svg)
+
+## Task Sets
+
+Run and analyze the task sets separately. They use the same provider model matrices and reasoning levels, but have distinct prompts, answer keys, benchmark variants, and result-file basenames.
+
+| Task set                  | Focus                                                                                 | Prompt suite                                  | Answer key                                             | Verifier                          | Benchmark variant              |
+| ------------------------- | ------------------------------------------------------------------------------------- | --------------------------------------------- | ------------------------------------------------------ | --------------------------------- | ------------------------------ |
+| Business operations       | Pipeline planning, policy, extraction, and debugging                                  | `operations_reasoning_benchmark_prompts.json` | `operations_reasoning_benchmark_expected_answers.json` | `operations_verify_answer_key.py` | `json_contract_v5`             |
+| Scientific field research | Chemistry, genetics, ecology, astronomy, laboratory allocation, and vessel scheduling | `scientific_reasoning_benchmark_prompts.json` | `scientific_reasoning_benchmark_expected_answers.json` | `scientific_verify_answer_key.py` | `scientific_field_research_v1` |
 
 ## Prerequisites
 
@@ -109,7 +120,9 @@ aws s3 sync s3://$YOUR_S3_BUCKET/token_models_reasoning_demo/results/ results/
 
 `aws s3 sync` copies new and changed files without deleting files that exist only at the destination.
 
-## Run The Benchmark
+## Run The Task Sets
+
+### Business-Operations Suite
 
 Optional: use `time` to measure total runtime of scripts.
 
@@ -118,13 +131,17 @@ time python operations_bedrock_reasoning_benchmark_anthropic.py
 time python operations_bedrock_reasoning_benchmark_openai.py
 ```
 
-Run the scripts from this project directory so their result files are written here.
+Run the scripts from this project directory so their result files are written here. Verify the answer key without making model requests:
+
+```bash
+python operations_verify_answer_key.py
+```
 
 Each benchmark case gets a fresh Bedrock bearer token from the active AWS credentials. Transient AWS credential errors are retried six times with exponential backoff.
 
 The timestamped JSON result file is atomically updated after every completed call. If a process is interrupted, the file preserves all calls completed up to that point. A checkpoint is partial evidence and does not automatically resume the remaining combinations.
 
-### Run In The Background
+### Run The Business-Operations Suite In The Background
 
 Use `nohup` to run both benchmarks sequentially in one background process that continues after the terminal closes. Change the max value below to run the complete cycles n times, with Anthropic followed by OpenAI in each cycle:
 
@@ -135,17 +152,17 @@ for run in {1..3}; do
   python -u operations_bedrock_reasoning_benchmark_anthropic.py
   python -u operations_bedrock_reasoning_benchmark_openai.py
 done
-' > benchmark.log 2>&1 &
+' > operations-benchmark.log 2>&1 &
 
 BENCHMARK_PID=$!
-echo "$BENCHMARK_PID" > benchmark.pid
+echo "$BENCHMARK_PID" > operations-benchmark.pid
 echo "Benchmark PID: $BENCHMARK_PID"
 ```
 
 Follow the three-cycle run with:
 
 ```bash
-tail -f benchmark.log
+tail -f operations-benchmark.log
 ```
 
 Running sequentially avoids introducing additional Bedrock throttling and local network contention into latency and retry measurements.
@@ -153,7 +170,7 @@ Running sequentially avoids introducing additional Bedrock throttling and local 
 Follow the live output:
 
 ```bash
-tail -f benchmark-run.log
+tail -f operations-benchmark.log
 ```
 
 Press `Ctrl-C` to stop following the log. This does not stop the benchmark.
@@ -173,7 +190,7 @@ pgrep -fl 'operations_bedrock_reasoning_benchmark_(anthropic|openai)\.py'
 No matching process means both scripts have finished or the run stopped. Check the end of the log for completion or errors:
 
 ```bash
-tail -n 50 benchmark-run.log
+tail -n 50 operations-benchmark.log
 ```
 
 The Mac must remain awake and connected to the network while the benchmarks run.
@@ -215,7 +232,7 @@ the timestamped JSON checkpoint containing calls completed before termination.
 
 ## Logging
 
-Every `json_contract_v5` execution creates a new UTC-stamped file in `results/`, so no run overwrites another:
+Every business-operations `json_contract_v5` execution creates a new UTC-stamped file in `results/`, so no run overwrites another:
 
 - `results/operations_bedrock_reasoning_benchmark_anthropic_json_contract_v5_YYYYMMDDTHHMMSSffffffZ.json`
 - `results/operations_bedrock_reasoning_benchmark_openai_json_contract_v5_YYYYMMDDTHHMMSSffffffZ.json`
@@ -259,7 +276,7 @@ The OpenAI benchmark runs:
 
 The benchmarks intentionally start at `low`; they do not include a no-reasoning baseline.
 
-## Prompt Suite
+## Business-Operations Prompt Suite
 
 `operations_reasoning_benchmark_prompts.json` contains six shared prompts:
 
@@ -272,7 +289,7 @@ The benchmarks intentionally start at `low`; they do not include a no-reasoning 
 
 Keep this file unchanged between provider runs when comparing results.
 
-## Scientific Replication Suite
+## Scientific Field-Research Suite
 
 The repository also includes a second, independently verified task set in the
 scientific field-research domain. It tests whether conclusions from the
