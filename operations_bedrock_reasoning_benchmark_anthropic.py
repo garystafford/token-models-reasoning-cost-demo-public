@@ -427,10 +427,9 @@ def calculate_cost(model: str, usage: dict) -> float | None:
     input_tokens = usage.get("input_tokens") or 0
     output_tokens = usage.get("output_tokens") or 0
 
-    cost = (
-        (input_tokens / 1_000_000) * rates["input"]
-        + (output_tokens / 1_000_000) * rates["output"]
-    )
+    cost = (input_tokens / 1_000_000) * rates["input"] + (
+        output_tokens / 1_000_000
+    ) * rates["output"]
     return round(cost, 6)
 
 
