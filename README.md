@@ -12,10 +12,10 @@ All requests is billable. Review the Amazon Bedrock Mantle public on-demand pric
 
 Run and analyze the benchmark suites separately. They use the same provider model matrices and reasoning levels, but have distinct prompts, answer keys, benchmark variants, and result-file basenames.
 
-| Benchmark suite           | Focus                                                                                 | Prompt suite                      | Answer key                         | Verifier                                | Benchmark variant              |
-| ------------------------- | ------------------------------------------------------------------------------------- | --------------------------------- | ---------------------------------- | --------------------------------------- | ------------------------------ |
-| Business operations       | Pipeline planning, policy, extraction, and debugging                                  | `benchmarks/operations/prompts.json` | `benchmarks/operations/expected_answers.json` | `benchmarks.operations.verify_answer_key` | `json_contract_v5`             |
-| Scientific field research | Chemistry, genetics, ecology, astronomy, laboratory allocation, and vessel scheduling | `benchmarks/scientific/prompts.json` | `benchmarks/scientific/expected_answers.json` | `benchmarks.scientific.verify_answer_key` | `scientific_field_research_v1` |
+| Benchmark suite           | Focus                                                                                                       | Prompt suite                         | Answer key                                    | Verifier                                  | Benchmark variant              |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------- | ------------------------------------ | --------------------------------------------- | ----------------------------------------- | ------------------------------ |
+| Business operations       | Pipeline planning, policy, extraction, and debugging                                                        | `benchmarks/operations/prompts.json` | `benchmarks/operations/expected_answers.json` | `benchmarks.operations.verify_answer_key` | `json_contract_v5`             |
+| Scientific field research | Chemistry, genetics, ecology, astronomy, laboratory allocation, and vessel scheduling                       | `benchmarks/scientific/prompts.json` | `benchmarks/scientific/expected_answers.json` | `benchmarks.scientific.verify_answer_key` | `scientific_field_research_v1` |
 | Resilience                | Access policy, data integrity, audit replay, version resolution, replica placement, and recovery scheduling | `benchmarks/resilience/prompts.json` | `benchmarks/resilience/expected_answers.json` | `benchmarks.resilience.verify_answer_key` | `resilience_v1`                |
 
 ## Prerequisites
@@ -381,15 +381,15 @@ Each saved record also includes `recoverable_evaluation`. It uses the same exact
 
 Each completed call also has one mutually exclusive `outcome`:
 
-| Outcome          | Meaning                                                                          |
-| ---------------- | -------------------------------------------------------------------------------- |
-| `strict`         | Correct answer returned as bare JSON                                             |
+| Outcome          | Meaning                                                                               |
+| ---------------- | ------------------------------------------------------------------------------------- |
+| `strict`         | Correct answer returned as bare JSON                                                  |
 | `format_only`    | Correct answer recovered from exactly one JSON code fence; discounted from comparison |
-| `semantic_error` | Parseable answer with values that do not match ground truth                      |
-| `policy_refusal` | Provider explicitly refused to answer                                            |
-| `truncated`      | Provider stopped at its configured token limit before returning a correct answer |
-| `malformed`      | Response could not be recovered as an answer                                     |
-| `endpoint_error` | Request ended without a model response                                           |
+| `semantic_error` | Parseable answer with values that do not match ground truth                           |
+| `policy_refusal` | Provider explicitly refused to answer                                                 |
+| `truncated`      | Provider stopped at its configured token limit before returning a correct answer      |
+| `malformed`      | Response could not be recovered as an answer                                          |
+| `endpoint_error` | Request ended without a model response                                                |
 
 The terminal summary reports raw JSON correctness, semantic correctness, discounted format-only successes, wrong answers, policy refusals, truncations, malformed responses, and endpoint errors separately. Provider response status, refusal details, and token-limit stops are saved outside the answer text.
 
