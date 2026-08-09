@@ -2,20 +2,21 @@
 
 For background, results, and detailed guidance on using this repository, see the accompanying blog post: [ValueMaxxing Reasoning Tokens: The Cost and Correctness of Frontier Models](https://garystafford.medium.com/valuemaxxing-reasoning-tokens-the-cost-and-correctness-of-frontier-models-0541d2a73778?sharedUserId=garystafford).
 
-This project compares reasoning-token usage, latency, and estimated on-demand cost across Anthropic Claude and OpenAI GPT models on Amazon Bedrock Mantle. It includes two independently versioned task sets: business operations and scientific field research.
+This project compares reasoning-token usage, latency, and estimated on-demand cost across Anthropic Claude and OpenAI GPT models on Amazon Bedrock Mantle. It includes three independently versioned benchmark suites: business operations, scientific field research, and resilience.
 
 All requests is billable. Review the Amazon Bedrock Mantle public on-demand pricing before running a full benchmark.
 
-![Final Results](./charts/model-effort-cost-combined-linkedin.svg)
+![Final Results](./charts/linkedin-hero-routing-chart.png)
 
-## Task Sets
+## Benchmark Suites
 
-Run and analyze the task sets separately. They use the same provider model matrices and reasoning levels, but have distinct prompts, answer keys, benchmark variants, and result-file basenames.
+Run and analyze the benchmark suites separately. They use the same provider model matrices and reasoning levels, but have distinct prompts, answer keys, benchmark variants, and result-file basenames.
 
-| Task set                  | Focus                                                                                 | Prompt suite                                  | Answer key                                             | Verifier                          | Benchmark variant              |
-| ------------------------- | ------------------------------------------------------------------------------------- | --------------------------------------------- | ------------------------------------------------------ | --------------------------------- | ------------------------------ |
-| Business operations       | Pipeline planning, policy, extraction, and debugging                                  | `operations_reasoning_benchmark_prompts.json` | `operations_reasoning_benchmark_expected_answers.json` | `operations_verify_answer_key.py` | `json_contract_v5`             |
-| Scientific field research | Chemistry, genetics, ecology, astronomy, laboratory allocation, and vessel scheduling | `scientific_reasoning_benchmark_prompts.json` | `scientific_reasoning_benchmark_expected_answers.json` | `scientific_verify_answer_key.py` | `scientific_field_research_v1` |
+| Benchmark suite           | Focus                                                                                 | Prompt suite                      | Answer key                         | Verifier                                | Benchmark variant              |
+| ------------------------- | ------------------------------------------------------------------------------------- | --------------------------------- | ---------------------------------- | --------------------------------------- | ------------------------------ |
+| Business operations       | Pipeline planning, policy, extraction, and debugging                                  | `benchmarks/operations/prompts.json` | `benchmarks/operations/expected_answers.json` | `benchmarks.operations.verify_answer_key` | `json_contract_v5`             |
+| Scientific field research | Chemistry, genetics, ecology, astronomy, laboratory allocation, and vessel scheduling | `benchmarks/scientific/prompts.json` | `benchmarks/scientific/expected_answers.json` | `benchmarks.scientific.verify_answer_key` | `scientific_field_research_v1` |
+| Resilience                | Access policy, data integrity, audit replay, version resolution, replica placement, and recovery scheduling | `benchmarks/resilience/prompts.json` | `benchmarks/resilience/expected_answers.json` | `benchmarks.resilience.verify_answer_key` | `resilience_v1`                |
 
 ## Prerequisites
 
@@ -120,21 +121,21 @@ aws s3 sync s3://$YOUR_S3_BUCKET/token_models_reasoning_demo/results/ results/
 
 `aws s3 sync` copies new and changed files without deleting files that exist only at the destination.
 
-## Run The Task Sets
+## Run The Benchmark Suites
 
 ### Business-Operations Suite
 
 Optional: use `time` to measure total runtime of scripts.
 
 ```bash
-time python operations_bedrock_reasoning_benchmark_anthropic.py
-time python operations_bedrock_reasoning_benchmark_openai.py
+time python -m benchmarks.operations.benchmark_anthropic
+time python -m benchmarks.operations.benchmark_openai
 ```
 
 Run the scripts from this project directory so their result files are written here. Verify the answer key without making model requests:
 
 ```bash
-python operations_verify_answer_key.py
+python -m benchmarks.operations.verify_answer_key
 ```
 
 Each benchmark case gets a fresh Bedrock bearer token from the active AWS credentials. Transient AWS credential errors are retried six times with exponential backoff.
@@ -149,8 +150,8 @@ Use `nohup` to run both benchmarks sequentially in one background process that c
 nohup sh -c '
 for run in {1..3}; do
   echo "Starting benchmark cycle $run of 3"
-  python -u operations_bedrock_reasoning_benchmark_anthropic.py
-  python -u operations_bedrock_reasoning_benchmark_openai.py
+  python -u -m benchmarks.operations.benchmark_anthropic
+  python -u -m benchmarks.operations.benchmark_openai
 done
 ' > operations-benchmark.log 2>&1 &
 
@@ -184,7 +185,7 @@ ps -p "$BENCHMARK_PID" -o pid,etime,state,command
 After opening a new terminal, where `BENCHMARK_PID` is no longer defined, find either running benchmark by script name:
 
 ```bash
-pgrep -fl 'operations_bedrock_reasoning_benchmark_(anthropic|openai)\.py'
+pgrep -fl 'benchmarks\.operations\.benchmark_(anthropic|openai)'
 ```
 
 No matching process means both scripts have finished or the run stopped. Check the end of the log for completion or errors:
@@ -278,7 +279,7 @@ The benchmarks intentionally start at `low`; they do not include a no-reasoning 
 
 ## Business-Operations Prompt Suite
 
-`operations_reasoning_benchmark_prompts.json` contains six shared prompts:
+`benchmarks/operations/prompts.json` contains six shared prompts:
 
 - `pipeline_simple`
 - `pipeline_moderate`
@@ -291,31 +292,56 @@ Keep this file unchanged between provider runs when comparing results.
 
 ## Scientific Field-Research Suite
 
-The repository also includes a second, independently verified task set in the
-scientific field-research domain. It tests whether conclusions from the
-business-operations suite generalize rather than reflect one unusual prompt
-set. The six scenarios cover chemistry, genetics, stratified ecology,
-astronomy event analysis, laboratory resource allocation, and research-vessel
-scheduling, with two tasks at each difficulty level.
+The scientific field-research suite is independently verified. It tests whether
+conclusions from the business-operations suite generalize rather than reflect
+one unusual prompt set. The six scenarios cover chemistry, genetics,
+stratified ecology, astronomy event analysis, laboratory resource allocation,
+and research-vessel scheduling, with two tasks at each difficulty level.
 
 Verify its answer key without making model requests:
 
 ```bash
-python3 scientific_verify_answer_key.py
+python -m benchmarks.scientific.verify_answer_key
 ```
 
 Run the complete scientific suite with the same provider model matrices and
-reasoning levels as the original benchmark:
+reasoning levels as the business-operations suite:
 
 ```bash
-python3 -u scientific_bedrock_reasoning_benchmark_anthropic.py
-python3 -u scientific_bedrock_reasoning_benchmark_openai.py
+python -u -m benchmarks.scientific.benchmark_anthropic
+python -u -m benchmarks.scientific.benchmark_openai
 ```
 
 The scientific runners use the benchmark variant
 `scientific_field_research_v1` and separate result basenames. Analyze their
-result files as a replication set rather than mixing them into the original
-`json_contract_v5` run matrix.
+result files as a replication set rather than mixing them into the
+`json_contract_v5` or `resilience_v1` run matrices.
+
+## Resilience Suite
+
+The resilience suite is independently verified and measures reasoning over
+access controls, integrity checks, deterministic event replay, compatibility
+resolution, constrained replica placement, and incident recovery scheduling.
+Like the other suites, it contains six scenarios with two at each difficulty
+level.
+
+Verify its answer key without making model requests:
+
+```bash
+python -m benchmarks.resilience.verify_answer_key
+```
+
+Run the complete resilience suite with the same provider model matrices and
+reasoning levels:
+
+```bash
+python -u -m benchmarks.resilience.benchmark_anthropic
+python -u -m benchmarks.resilience.benchmark_openai
+```
+
+The resilience runners use the `resilience_v1` benchmark variant and separate
+result basenames. Analyze their result files as a third replication set; do
+not mix them into the business-operations or scientific run matrices.
 
 ## Results And Cost Estimates
 
@@ -325,6 +351,8 @@ Each script prints a summary and writes its full response records to a timestamp
 - `results/operations_bedrock_reasoning_benchmark_openai_<variant>_<timestamp>.json`
 - `results/scientific_bedrock_reasoning_benchmark_anthropic_<variant>_<timestamp>.json`
 - `results/scientific_bedrock_reasoning_benchmark_openai_<variant>_<timestamp>.json`
+- `results/resilience_bedrock_reasoning_benchmark_anthropic_<variant>_<timestamp>.json`
+- `results/resilience_bedrock_reasoning_benchmark_openai_<variant>_<timestamp>.json`
 
 OpenAI estimates use standard in-region on-demand rates from the [Amazon Bedrock pricing page](https://aws.amazon.com/bedrock/pricing/). The rates used as of 2026-08-01 are:
 
@@ -339,12 +367,12 @@ GPT-5.6 cache writes use the published write rates. Cache reads are charged at t
 
 Claude Sonnet 5 uses the announced post-promotion standard rate of $3 per million input tokens and $15 per million output tokens. AWS promotional launch pricing of $2/$10 remains in effect through August 31, 2026.
 
-Each completed call is evaluated against the answer key for its suite (`operations_reasoning_benchmark_expected_answers.json` or `scientific_reasoning_benchmark_expected_answers.json`). The answer key is not sent to the models. A `PASS` requires valid JSON with the exact expected values and types. The strict and recoverable evaluations retain concise mismatch details in the per-call output and saved JSON record.
+Each completed call is evaluated against the answer key for its suite (`benchmarks/<suite>/expected_answers.json`). The answer key is not sent to the models. A `PASS` requires valid JSON with the exact expected values and types. The strict and recoverable evaluations retain concise mismatch details in the per-call output and saved JSON record.
 
-The business-operations answer key is independently checked by `operations_verify_answer_key.py`. It exhaustively enumerates the moderate selection and complex worker-allocation problems, and deterministically derives the remaining answers. Both benchmark scripts run their suite's verification automatically before their first paid request. It can also be run directly:
+Every suite's answer key is independently checked by its `verify_answer_key` module. The operations verifier exhaustively enumerates the moderate selection and complex worker-allocation problems, then deterministically derives the remaining answers. Both benchmark scripts run their suite's verification automatically before their first paid request. The operations verifier can also be run directly:
 
 ```bash
-python operations_verify_answer_key.py
+python -m benchmarks.operations.verify_answer_key
 ```
 
 Treat a passing verifier as a reproducible check, not a substitute for review: the benchmark author or a second reviewer should confirm that the reference solver faithfully represents every prompt and tie-break rule. For a decision-grade benchmark, retain that review with the prompt-suite version.
