@@ -77,14 +77,15 @@ aws bedrock put-account-data-retention \
 
 ## Sync With EC2 And S3
 
-For the benchmark, I ran all test on an Amazon EC2 instance in the `us-east-1` AWS Region. This avoided connectivity and other potential issues that could arise from running the scripts locally on my Mac.
+For the benchmark, I ran all tests on an Amazon Linux-based Amazon EC2 instance in the `us-east-1` AWS Region. This avoided connectivity and other potential issues that could arise from running the scripts locally on my laptop.
 
 Connect to the EC2 instance:
 
 ```bash
 export YOUR_EC2_IP_ADDRESS=<YOUR_EC2_IP_ADDRESS>
+export YOUR_SSH_KEY=<YOUR_SSH_KEY>
 
-ssh -i ~/.ssh/advanced-networking-cert.pem "ec2-user@${YOUR_EC2_IP_ADDRESS}"
+ssh -i "~/.ssh/@{YOUR_SSH_KEY} ec2-user@${YOUR_EC2_IP_ADDRESS}"
 ```
 
 From the local Mac, sync the project code to the EC2 instance:
@@ -92,14 +93,12 @@ From the local Mac, sync the project code to the EC2 instance:
 ```bash
 rsync -avz \
   --exclude '.venv/' \
-  --exclude '__pycache__/' \
+  --exclude '**/__pycache__/' \
   --exclude '.git/' \
-  --exclude '.DS_Store' \
+  --exclude '**/.DS_Store' \
   --exclude '.gitignore' \
   --exclude 'results/' \
-  --exclude 'blog/' \
-  --exclude '*.log' \
-  -e "ssh -i ~/.ssh/advanced-networking-cert.pem" \
+  -e "ssh -i ~/.ssh/@{YOUR_SSH_KEY}" \
   . \
   "ec2-user@${YOUR_EC2_IP_ADDRESS}:~/token_models_reasoning_demo/"
 ```
@@ -125,11 +124,9 @@ aws s3 sync s3://$YOUR_S3_BUCKET/token_models_reasoning_demo/results/ results/
 
 ### Business-Operations Suite
 
-Optional: use `time` to measure total runtime of scripts.
-
 ```bash
-time python -m benchmarks.operations.benchmark_anthropic
-time python -m benchmarks.operations.benchmark_openai
+python -m benchmarks.operations.benchmark_anthropic
+python -m benchmarks.operations.benchmark_openai
 ```
 
 Run the scripts from this project directory so their result files are written here. Verify the answer key without making model requests:
