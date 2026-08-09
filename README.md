@@ -1,12 +1,12 @@
 # Token Models Reasoning Demo
 
-For background, results, and detailed guidance on using this repository, see the accompanying blog post: [ValueMaxxing Reasoning Tokens: The Cost and Correctness of Frontier Models](https://garystafford.medium.com/valuemaxxing-reasoning-tokens-the-cost-and-correctness-of-frontier-models-0541d2a73778?sharedUserId=garystafford).
+For background, results, and detailed guidance on using this repository, see the accompanying blog post: [The Right Model and Reasoning Level Depend on the Workload](https://garystafford.medium.com/the-right-model-and-reasoning-level-depend-on-the-workload-482a33d1d644?sharedUserId=garystafford).
 
 This project compares reasoning-token usage, latency, and estimated on-demand cost across Anthropic Claude and OpenAI GPT models on Amazon Bedrock Mantle. It includes three independently versioned benchmark suites: business operations, scientific field research, and resilience.
 
 All requests is billable. Review the Amazon Bedrock Mantle public on-demand pricing before running a full benchmark.
 
-![Final Results](./charts/linkedin-hero-routing-chart.png)
+![Final Results](./charts/linkedin-token-v3.png)
 
 ## Benchmark Suites
 
@@ -367,7 +367,7 @@ GPT-5.6 cache writes use the published write rates. Cache reads are charged at t
 
 Claude Sonnet 5 uses the announced post-promotion standard rate of $3 per million input tokens and $15 per million output tokens. AWS promotional launch pricing of $2/$10 remains in effect through August 31, 2026.
 
-Each completed call is evaluated against the answer key for its suite (`benchmarks/<suite>/expected_answers.json`). The answer key is not sent to the models. A `PASS` requires valid JSON with the exact expected values and types. The strict and recoverable evaluations retain concise mismatch details in the per-call output and saved JSON record.
+Each completed call is evaluated against the answer key for its suite (`benchmarks/<suite>/expected_answers.json`). The answer key is not sent to the models. A `PASS` requires valid JSON with the exact expected values and types. The strict and recoverable evaluations retain concise mismatch details in the per-call output and saved JSON record. Fenced-JSON recoveries are reported for diagnosis but discounted from comparative correctness: Anthropic models can avoid this formatting issue with a capability that is not available through Amazon Bedrock Mantle. See [The Right Model and Reasoning Level Depend on the Workload](https://garystafford.medium.com/the-right-model-and-reasoning-level-depend-on-the-workload-482a33d1d644?sharedUserId=garystafford) for the evaluation rationale.
 
 Every suite's answer key is independently checked by its `verify_answer_key` module. The operations verifier exhaustively enumerates the moderate selection and complex worker-allocation problems, then deterministically derives the remaining answers. Both benchmark scripts run their suite's verification automatically before their first paid request. The operations verifier can also be run directly:
 
@@ -377,21 +377,21 @@ python -m benchmarks.operations.verify_answer_key
 
 Treat a passing verifier as a reproducible check, not a substitute for review: the benchmark author or a second reviewer should confirm that the reference solver faithfully represents every prompt and tie-break rule. For a decision-grade benchmark, retain that review with the prompt-suite version.
 
-Each saved record also includes `recoverable_evaluation`. It uses the same exact answer comparison after accepting either direct JSON or exactly one `json` Markdown code fence. This separates raw response-contract compliance from underlying answer correctness; it does not make fenced output a raw `PASS`.
+Each saved record also includes `recoverable_evaluation`. It uses the same exact answer comparison after accepting either direct JSON or exactly one `json` Markdown code fence. This separates raw response-contract compliance from underlying answer correctness. Fenced output is diagnostic only: it is excluded from the raw JSON correctness used for cross-model comparison and does not make a raw `PASS`.
 
 Each completed call also has one mutually exclusive `outcome`:
 
 | Outcome          | Meaning                                                                          |
 | ---------------- | -------------------------------------------------------------------------------- |
 | `strict`         | Correct answer returned as bare JSON                                             |
-| `format_only`    | Correct answer recovered from exactly one JSON code fence                        |
+| `format_only`    | Correct answer recovered from exactly one JSON code fence; discounted from comparison |
 | `semantic_error` | Parseable answer with values that do not match ground truth                      |
 | `policy_refusal` | Provider explicitly refused to answer                                            |
 | `truncated`      | Provider stopped at its configured token limit before returning a correct answer |
 | `malformed`      | Response could not be recovered as an answer                                     |
 | `endpoint_error` | Request ended without a model response                                           |
 
-The terminal summary reports raw JSON correctness, semantic correctness, format-only successes, wrong answers, policy refusals, truncations, malformed responses, and endpoint errors separately. Provider response status, refusal details, and token-limit stops are saved outside the answer text.
+The terminal summary reports raw JSON correctness, semantic correctness, discounted format-only successes, wrong answers, policy refusals, truncations, malformed responses, and endpoint errors separately. Provider response status, refusal details, and token-limit stops are saved outside the answer text.
 
 Each request record also captures `request_attempts`, `retry_count`, and `retry_events`. A retry event records the retryable HTTP status code or connection/timeout error and its requested backoff duration. Request elapsed time includes retry backoff. The terminal summary reports total retries, calls that retried, and terminal endpoint errors.
 
@@ -403,7 +403,7 @@ Choosing a reasoning model is a systems problem, not a token-price lookup. A def
 
 - **Ground-truth integrity.** A benchmark cannot be more reliable than its answer key. Derive expected answers deterministically where possible, test the verifier itself, document acceptable equivalents, and independently review ambiguous cases.
 - **Semantic correctness.** Determine whether the answer is actually right, not merely plausible, well written, or valid JSON.
-- **Output-contract compliance.** Measure correct-but-malformed responses separately from semantic errors. A recoverable code fence may preserve the answer while still creating integration work and production risk.
+- **Output-contract compliance.** Measure correct-but-malformed responses separately from semantic errors. A recoverable code fence may preserve the answer while still creating integration work and production risk. Report it diagnostically, but discount it when the capability to prevent it is not consistently available across the compared endpoints.
 - **Completion.** Distinguish a complete wrong answer from truncation, refusal, timeout, and endpoint failure. Each has a different cause and remedy.
 - **Gross versus productive reasoning.** Count all returned usage as consumption, but separate reasoning that produced correct answers, wrong answers, and no usable answer. Tokens spent are not necessarily tokens needed.
 - **Output-token limits.** Set a maximum loss per request. A high ceiling can accommodate difficult work, but it can also allow a failing request to consume tens of thousands of tokens before stopping.
