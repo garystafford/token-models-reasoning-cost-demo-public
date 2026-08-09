@@ -1,35 +1,34 @@
 #!/usr/bin/env python3
 """
-Cycles through Anthropic Claude Opus 5, Sonnet 5, Fable 5, and Haiku 4.5 on
-Amazon Bedrock, running a shared six-scenario prompt suite at each model's
-supported reasoning level.
+Cycles through GPT-5.6 Sol, Terra, Luna, and GPT-5.5 on Amazon Bedrock across
+their supported reasoning-effort levels, running a shared six-scenario prompt
+suite at each level with prompt caching disabled.
 
-Opus 5, Sonnet 5, and Fable 5 use adaptive thinking and an effort level. Haiku
-4.5 uses extended thinking, so its low, medium, and high benchmark entries map to
-explicit thinking budgets. The script uses the Anthropic Messages API exposed
-by the bedrock-mantle endpoint, rather than the OpenAI-compatible Responses
-API.
-
-Assumes you're already logged in (for example, `aws sso login`) and uses the
-default AWS credential chain, with no profile/session wiring needed.
+Note: These models are served via the OpenAI-compatible Responses API on the
+bedrock-mantle endpoint, not the native bedrock-runtime InvokeModel API.
+Assumes you're already logged in (e.g. `aws sso login`) — uses the default
+AWS credential chain, no profile/session wiring needed.
 
 Requirements:
     pip install aws-bedrock-token-generator requests
 """
 
-import argparse
 import hashlib
 import json
+import sys
 import time
 from datetime import datetime, timezone
 from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
 import requests
 from aws_bedrock_token_generator import provide_token
 from botocore.exceptions import BotoCoreError
 
 from reasoning_benchmark_evaluation import (
-    ANSWER_KEY_PATH,
     classify_response_outcome,
     count_outcomes,
     evaluate_answer,
@@ -38,20 +37,22 @@ from reasoning_benchmark_evaluation import (
     load_expected_answers,
     outcome_label,
 )
-from operations_verify_answer_key import verify_answer_key
+from reasoning_benchmark_pricing import (
+    estimate_openai_standard_cost,
+    openai_pricing_metadata,
+)
+from benchmarks.operations.verify_answer_key import verify_answer_key
 
 # --- Configuration -----------------------------------------------------
 
 AWS_REGION = "us-east-1"
-MAX_TOKENS = 65_536
 SCENARIO_WIDTH = 18
 OUTCOME_WIDTH = 14
 BENCHMARK_VARIANT = "json_contract_v5"
-RESULTS_DIR = Path(__file__).with_name("results")
-RESULTS_BASENAME = "operations_bedrock_reasoning_benchmark_anthropic"
-REPAIR_RESULTS_BASENAME = "bedrock_reasoning_repair_anthropic"
+RESULTS_DIR = PROJECT_ROOT / "results"
+RESULTS_BASENAME = "operations_bedrock_reasoning_benchmark_openai"
 
-# Keep this contract identical in the OpenAI benchmark. The user prompt still
+# Keep this contract identical in the Anthropic benchmark. The user prompt still
 # defines each task's JSON shape; this stable instruction defines the response
 # boundary for every scenario and effort level.
 SYSTEM_PROMPT = """This is a controlled benchmark of benign, self-contained
@@ -68,61 +69,17 @@ Output the object directly.
 Do not include Markdown, code fences, prose, analysis, explanations, or any text
 before or after the JSON object."""
 
-MODEL_CONFIGS = {
-    "anthropic.claude-fable-5": {
-        "reasoning_mode": "adaptive thinking",
-        "efforts": ("low", "medium", "high", "xhigh", "max"),
-    },
-    "anthropic.claude-opus-5": {
-        "reasoning_mode": "adaptive thinking",
-        "efforts": ("low", "medium", "high", "xhigh", "max"),
-    },
-    "anthropic.claude-sonnet-5": {
-        "reasoning_mode": "adaptive thinking",
-        "efforts": ("low", "medium", "high", "xhigh", "max"),
-    },
-    "anthropic.claude-haiku-4-5": {
-        "reasoning_mode": "extended thinking",
-        # Haiku 4.5 does not support adaptive-thinking effort. These labels
-        # make its explicit thinking budgets comparable to the other benchmarks.
-        "thinking_budgets": {
-            "low": 1_024,
-            "medium": 4_096,
-            "high": 16_384,
-        },
-    },
+MODEL_EFFORTS = {
+    "openai.gpt-5.6-sol": ("low", "medium", "high", "xhigh", "max"),
+    "openai.gpt-5.6-terra": ("low", "medium", "high", "xhigh", "max"),
+    "openai.gpt-5.6-luna": ("low", "medium", "high", "xhigh", "max"),
+    # GPT-5.5 supports none through xhigh, but the benchmark intentionally starts
+    # at low so every entry performs some reasoning.
+    "openai.gpt-5.5": ("low", "medium", "high", "xhigh"),
 }
 
-MAX_TOKENS_BY_MODEL = {
-    "anthropic.claude-haiku-4-5": 32_768,
-}
-
-# Standard Amazon Bedrock on-demand pricing (USD per 1M tokens), with prompt
-# caching disabled.
-# Sonnet uses the announced $3/$15 standard rates that take effect after its
-# $2/$10 launch promotion ends on August 31, 2026.
-PRICING = {
-    "anthropic.claude-fable-5": {
-        "input": 10.00,
-        "output": 50.00,
-    },
-    "anthropic.claude-opus-5": {
-        "input": 5.00,
-        "output": 25.00,
-    },
-    "anthropic.claude-sonnet-5": {
-        "input": 3.00,
-        "output": 15.00,
-    },
-    "anthropic.claude-haiku-4-5": {
-        "input": 1.00,
-        "output": 5.00,
-    },
-}
-
-PROMPT_SUITE_PATH = Path(__file__).with_name(
-    "operations_reasoning_benchmark_prompts.json"
-)
+PROMPT_SUITE_PATH = Path(__file__).with_name("prompts.json")
+ANSWER_KEY_PATH = Path(__file__).with_name("expected_answers.json")
 
 
 def load_prompts() -> tuple[tuple[str, str], ...]:
@@ -169,15 +126,17 @@ def load_prompts() -> tuple[tuple[str, str], ...]:
 
 
 PROMPTS = load_prompts()
-EXPECTED_ANSWERS = load_expected_answers(scenario_id for scenario_id, _ in PROMPTS)
+EXPECTED_ANSWERS = load_expected_answers(
+    (scenario_id for scenario_id, _ in PROMPTS), ANSWER_KEY_PATH
+)
 
-BASE_URL = f"https://bedrock-mantle.{AWS_REGION}.api.aws/anthropic/v1/messages"
+BASE_URL = f"https://bedrock-mantle.{AWS_REGION}.api.aws/openai/v1/responses"
 
 
 # --- Helpers -------------------------------------------------------------
 
 
-AUTH_MAX_RETRIES = 6
+AUTH_MAX_RETRIES = 2
 AUTH_BASE_BACKOFF_SECONDS = 2
 AUTH_MAX_BACKOFF_SECONDS = 60
 
@@ -217,200 +176,176 @@ def get_bearer_token(region: str) -> tuple[str, list[dict]]:
             time.sleep(wait)
 
 
-RETRYABLE_STATUS_CODES = {429, 500, 502, 503, 504, 529}
-MAX_RETRIES = 6
-BASE_BACKOFF_SECONDS = 2
-MAX_BACKOFF_SECONDS = 60
-
-
-def get_reasoning_config(model: str, effort: str) -> dict:
-    """Build the native Claude thinking configuration for a benchmark entry."""
-    config = MODEL_CONFIGS[model]
-
-    if config["reasoning_mode"] == "adaptive thinking":
-        return {
-            "output_config": {"effort": effort},
-        }
-
-    return {
-        "thinking": {
-            "type": "enabled",
-            "budget_tokens": config["thinking_budgets"][effort],
-        }
-    }
-
-
-def describe_reasoning(model: str, effort: str) -> str:
-    """Return a concise label for terminal output and result records."""
-    config = MODEL_CONFIGS[model]
-    if config["reasoning_mode"] == "adaptive thinking":
-        return f"adaptive/{effort}"
-    return f"extended/{effort} ({config['thinking_budgets'][effort]:,} tokens)"
-
-
-def max_tokens_for_model(model: str) -> int:
-    """Return a model-specific output ceiling or the Anthropic default."""
-    return MAX_TOKENS_BY_MODEL.get(model, MAX_TOKENS)
-
-
-def get_retry_delay(response: requests.Response | None, attempt: int) -> float:
-    """Use Bedrock's retry hint when present, otherwise exponential backoff."""
-    retry_after = response.headers.get("Retry-After") if response is not None else None
-    if retry_after is not None:
-        try:
-            return min(float(retry_after), MAX_BACKOFF_SECONDS)
-        except ValueError:
-            pass
-
-    return min(BASE_BACKOFF_SECONDS * (2**attempt), MAX_BACKOFF_SECONDS)
+RETRYABLE_STATUS_CODES = {429, 500, 502, 503, 504}
+MAX_RETRIES = 2
+MAX_TIMEOUT_RETRIES = 1
+BASE_BACKOFF_SECONDS = 2  # doubles each retry: 2s, 4s
+REQUEST_TIMEOUT_SECONDS = 120
+REQUEST_DEADLINE_SECONDS = 600
 
 
 def call_model(
     bearer_token: str, model: str, effort: str, prompt: str
 ) -> tuple[dict, list[dict]]:
+    """Call one model within a bounded retry and wall-clock budget."""
     headers = {
         "Authorization": f"Bearer {bearer_token}",
         "Content-Type": "application/json",
-        "anthropic-version": "2023-06-01",
     }
     payload = {
         "model": model,
-        "max_tokens": max_tokens_for_model(model),
-        "system": SYSTEM_PROMPT,
-        "messages": [{"role": "user", "content": prompt}],
-        **get_reasoning_config(model, effort),
+        "input": prompt,
+        "instructions": SYSTEM_PROMPT,
+        "reasoning": {"effort": effort},
     }
 
     retry_events = []
+    deadline = time.monotonic() + REQUEST_DEADLINE_SECONDS
     for attempt in range(MAX_RETRIES + 1):
+        remaining_seconds = deadline - time.monotonic()
+        if remaining_seconds <= 0:
+            error = requests.exceptions.Timeout(
+                f"Request deadline of {REQUEST_DEADLINE_SECONDS}s exceeded."
+            )
+            error.retry_events = retry_events
+            error.request_attempts = attempt
+            raise error
+
         try:
-            resp = requests.post(BASE_URL, headers=headers, json=payload, timeout=300)
-        except (
-            requests.exceptions.ConnectionError,
-            requests.exceptions.Timeout,
-        ) as exc:
-            if attempt >= MAX_RETRIES:
-                exc.retry_events = retry_events
-                exc.request_attempts = attempt + 1
-                raise
-
-            wait = get_retry_delay(None, attempt)
-            retry_events.append(
-                {
-                    "attempt": attempt + 1,
-                    "status_code": None,
-                    "error_type": type(exc).__name__,
-                    "backoff_s": wait,
-                }
+            resp = requests.post(
+                BASE_URL,
+                headers=headers,
+                json=payload,
+                timeout=min(REQUEST_TIMEOUT_SECONDS, remaining_seconds),
             )
-            print(
-                f"  Retryable {type(exc).__name__}, attempt {attempt + 1}/{MAX_RETRIES}, "
-                f"retrying in {wait}s..."
+        except requests.exceptions.Timeout as error:
+            retry_limit = MAX_TIMEOUT_RETRIES
+            response = None
+            retry_error = error
+        except requests.exceptions.ConnectionError as error:
+            retry_limit = MAX_RETRIES
+            response = None
+            retry_error = error
+        else:
+            if resp.status_code not in RETRYABLE_STATUS_CODES:
+                # Success, or a non-retryable client error (400, etc.) — don't
+                # retry a bad request, it'll just fail the same way again.
+                try:
+                    resp.raise_for_status()
+                except requests.exceptions.HTTPError as exc:
+                    exc.retry_events = retry_events
+                    exc.request_attempts = attempt + 1
+                    raise
+                return resp.json(), retry_events
+            retry_error = requests.exceptions.HTTPError(
+                f"{resp.status_code} Server Error (retryable) for url: {resp.url}",
+                response=resp,
             )
-            time.sleep(wait)
-            continue
+            retry_limit = MAX_RETRIES
+            response = resp
 
-        if resp.status_code not in RETRYABLE_STATUS_CODES:
-            # Success, or a non-retryable client error (400, etc.) — don't
-            # retry a bad request, it'll just fail the same way again.
-            try:
-                resp.raise_for_status()
-            except requests.exceptions.HTTPError as exc:
-                exc.retry_events = retry_events
-                exc.request_attempts = attempt + 1
-                raise
-            return resp.json(), retry_events
+        if attempt >= retry_limit:
+            retry_error.retry_events = retry_events
+            retry_error.request_attempts = attempt + 1
+            raise retry_error
 
-        # Retryable error — back off and try again, unless out of attempts.
-        if attempt < MAX_RETRIES:
-            wait = get_retry_delay(resp, attempt)
-            retry_events.append(
-                {
-                    "attempt": attempt + 1,
-                    "status_code": resp.status_code,
-                    "error_type": None,
-                    "backoff_s": wait,
-                }
+        wait = BASE_BACKOFF_SECONDS * (2**attempt)
+        remaining_seconds = deadline - time.monotonic()
+        if remaining_seconds <= wait:
+            error = requests.exceptions.Timeout(
+                f"Request deadline of {REQUEST_DEADLINE_SECONDS}s exceeded."
             )
-            print(
-                f"  Retryable error ({resp.status_code}), attempt {attempt + 1}/{MAX_RETRIES}, "
-                f"retrying in {wait}s..."
-            )
-            time.sleep(wait)
+            error.retry_events = retry_events
+            error.request_attempts = attempt + 1
+            raise error
 
-    # Exhausted retries — surface the last error to the caller.
-    error = requests.exceptions.HTTPError(
-        f"{resp.status_code} Server Error (retryable) for url: {resp.url}",
-        response=resp,
-    )
-    error.retry_events = retry_events
-    error.request_attempts = MAX_RETRIES + 1
-    raise error
+        retry_events.append(
+            {
+                "attempt": attempt + 1,
+                "status_code": response.status_code if response is not None else None,
+                "error_type": (
+                    type(retry_error).__name__ if response is None else None
+                ),
+                "backoff_s": wait,
+            }
+        )
+        print(
+            f"  Retryable {type(retry_error).__name__}, attempt {attempt + 1}/{retry_limit}, "
+            f"retrying in {wait}s..."
+        )
+        time.sleep(wait)
 
 
 def extract_text(response_json: dict) -> str:
-    """Pull the final answer text out of an Anthropic Messages API payload."""
+    """Pull the final answer text out of a Responses API payload."""
     chunks = []
-    for part in response_json.get("content", []):
-        if part.get("type") == "text":
-            chunks.append(part.get("text", ""))
+    for item in response_json.get("output", []):
+        if item.get("type") == "message":
+            for part in item.get("content", []):
+                if part.get("type") in ("output_text", "text"):
+                    chunks.append(part.get("text", ""))
     return "\n".join(chunks).strip()
 
 
 def extract_response_metadata(response_json: dict) -> dict:
-    """Capture provider response state without treating it as answer text."""
-    stop_reason = response_json.get("stop_reason")
-    stop_details = response_json.get("stop_details")
-    provider_refusal = stop_reason == "refusal" or (
-        isinstance(stop_details, dict) and stop_details.get("type") == "refusal"
+    """Capture Responses API state and refusal details separately from text."""
+    refusals = []
+    for item in response_json.get("output", []):
+        if item.get("type") != "message":
+            continue
+        for part in item.get("content", []):
+            if part.get("type") == "refusal":
+                refusals.append(part.get("refusal") or part.get("text") or "")
+
+    response_error = response_json.get("error")
+    error_type = (
+        response_error.get("type") if isinstance(response_error, dict) else None
     )
+    provider_refusal = (
+        bool(refusals)
+        or response_json.get("status") == "refused"
+        or (isinstance(error_type, str) and "refusal" in error_type)
+    )
+    incomplete_details = response_json.get("incomplete_details")
+    incomplete_reason = (
+        incomplete_details.get("reason")
+        if isinstance(incomplete_details, dict)
+        else None
+    )
+    provider_truncated = response_json.get(
+        "status"
+    ) == "incomplete" and incomplete_reason in {"max_output_tokens", "max_tokens"}
     return {
         "response_id": response_json.get("id"),
         "response_model": response_json.get("model"),
-        "response_stop_reason": stop_reason,
-        "response_stop_sequence": response_json.get("stop_sequence"),
-        "response_stop_details": stop_details,
+        "response_status": response_json.get("status"),
+        "response_incomplete_details": incomplete_details,
+        "response_error": response_error,
+        "response_refusals": refusals,
         "provider_refusal": provider_refusal,
-        "provider_truncated": stop_reason == "max_tokens",
+        "provider_truncated": provider_truncated,
     }
 
 
 def extract_usage(response_json: dict) -> dict:
-    """Pull input, reasoning, and output counts from a cold-cache response.
+    """Pull input, reasoning, and output counts from a response.
 
     Typical shape:
         "usage": {
             "input_tokens": ...,
             "output_tokens": ...,
+            "output_tokens_details": {"reasoning_tokens": ...},
+            "total_tokens": ...
         }
     """
     usage = response_json.get("usage", {})
     output_details = usage.get("output_tokens_details", {}) or {}
-    input_tokens = usage.get("input_tokens")
-    output_tokens = usage.get("output_tokens")
-    cache_creation_tokens = usage.get("cache_creation_input_tokens") or 0
-    cached_tokens = usage.get("cache_read_input_tokens") or 0
-    if cache_creation_tokens or cached_tokens:
-        raise RuntimeError(
-            "Prompt caching was disabled, but the Anthropic response reported "
-            f"{cache_creation_tokens} cache-write and {cached_tokens} cache-read tokens."
-        )
 
     return {
-        "input_tokens": input_tokens,
-        # Thinking is billed as output; retain the separate count when the
-        # Messages API includes it in either supported usage shape.
-        "reasoning_tokens": (
-            usage.get("thinking_tokens")
-            if usage.get("thinking_tokens") is not None
-            else output_details.get("thinking_tokens")
-        ),
-        "output_tokens": output_tokens,
-        "total_tokens": (
-            sum(value or 0 for value in (input_tokens, output_tokens))
-            if input_tokens is not None or output_tokens is not None
-            else None
-        ),
+        "input_tokens": usage.get("input_tokens"),
+        "reasoning_tokens": output_details.get("reasoning_tokens"),
+        "output_tokens": usage.get("output_tokens"),
+        "total_tokens": usage.get("total_tokens"),
         "raw_usage": usage,  # keep the full block too, in case shape differs
     }
 
@@ -418,34 +353,26 @@ def extract_usage(response_json: dict) -> dict:
 def calculate_cost(model: str, usage: dict) -> float | None:
     """Estimate USD cost for one call at standard on-demand token rates.
 
-    Claude bills extended/adaptive-thinking tokens as output tokens.
+    output_tokens as returned by the Responses API already includes
+    reasoning tokens (they're billed at the output rate), so no separate
+    line item is needed for reasoning.
     """
-    rates = PRICING.get(model)
-    if rates is None:
-        return None
-
-    input_tokens = usage.get("input_tokens") or 0
-    output_tokens = usage.get("output_tokens") or 0
-
-    cost = (input_tokens / 1_000_000) * rates["input"] + (
-        output_tokens / 1_000_000
-    ) * rates["output"]
-    return round(cost, 6)
+    return estimate_openai_standard_cost(model, usage)
 
 
-def create_run_metadata(
-    results_basename: str = RESULTS_BASENAME,
-    selected_model: str | None = None,
-) -> tuple[dict[str, object], Path]:
+def create_run_metadata() -> tuple[dict[str, object], Path]:
     """Create a UTC run identity and its non-overwriting result path."""
     started_at = datetime.now(timezone.utc)
     timestamp = started_at.strftime("%Y%m%dT%H%M%S%fZ")
-    run_id = f"{results_basename}_{BENCHMARK_VARIANT}_{timestamp}"
+    run_id = f"{RESULTS_BASENAME}_{BENCHMARK_VARIANT}_{timestamp}"
     metadata = {
         "run_id": run_id,
         "run_started_at_utc": started_at.isoformat().replace("+00:00", "Z"),
         "benchmark_variant": BENCHMARK_VARIANT,
-        "max_tokens": MAX_TOKENS,
+        "request_timeout_seconds": REQUEST_TIMEOUT_SECONDS,
+        "request_deadline_seconds": REQUEST_DEADLINE_SECONDS,
+        "max_retries": MAX_RETRIES,
+        "max_timeout_retries": MAX_TIMEOUT_RETRIES,
         "prompt_suite_sha256": hashlib.sha256(
             PROMPT_SUITE_PATH.read_bytes()
         ).hexdigest(),
@@ -454,8 +381,6 @@ def create_run_metadata(
             SYSTEM_PROMPT.encode("utf-8")
         ).hexdigest(),
     }
-    if selected_model is not None:
-        metadata["selected_model"] = selected_model
     return metadata, RESULTS_DIR / f"{run_id}.json"
 
 
@@ -472,48 +397,24 @@ def write_results_checkpoint(results_path: Path, results: list[dict]) -> None:
 # --- Main benchmark --------------------------------------------------------
 
 
-def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument(
-        "--model",
-        choices=tuple(MODEL_CONFIGS),
-        help=(
-            "Run only one model. Partial runs use a repair filename and are "
-            "excluded from automatic full-benchmark chart discovery."
-        ),
-    )
-    return parser.parse_args()
-
-
 def main():
-    args = parse_args()
-    selected_configs = (
-        {args.model: MODEL_CONFIGS[args.model]} if args.model else MODEL_CONFIGS
-    )
     verified_answers = verify_answer_key()
     print(f"Ground truth verified: {len(verified_answers)}/{len(PROMPTS)} scenarios")
     results = []
-    results_basename = REPAIR_RESULTS_BASENAME if args.model else RESULTS_BASENAME
-    run_metadata, results_path = create_run_metadata(results_basename, args.model)
+    run_metadata, results_path = create_run_metadata()
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
-    total_calls = len(PROMPTS) * sum(
-        len(config.get("efforts", config.get("thinking_budgets", {})))
-        for config in selected_configs.values()
-    )
+    total_calls = len(PROMPTS) * sum(len(efforts) for efforts in MODEL_EFFORTS.values())
     call_number = 0
 
     for scenario, prompt in PROMPTS:
-        for model, config in selected_configs.items():
-            efforts = config.get("efforts", config.get("thinking_budgets", {}).keys())
+        for model, efforts in MODEL_EFFORTS.items():
             for effort in efforts:
-                request_max_tokens = max_tokens_for_model(model)
                 call_number += 1
                 print(f"\n{'=' * 70}")
                 print(
                     f"[{call_number}/{total_calls}] SCENARIO: {scenario}  |  MODEL: {model}  |  "
-                    f"REASONING: {describe_reasoning(model, effort)}"
+                    f"REASONING EFFORT: {effort}"
                 )
-                print(f"MAX TOKENS: {request_max_tokens:,}")
                 print(f"BENCHMARK VARIANT: {BENCHMARK_VARIANT}")
                 print(f"RUN ID: {run_metadata['run_id']}")
                 print("=" * 70)
@@ -577,11 +478,9 @@ def main():
                     results.append(
                         {
                             **run_metadata,
-                            "max_tokens": request_max_tokens,
                             "scenario": scenario,
                             "model": model,
                             "effort": effort,
-                            "reasoning": describe_reasoning(model, effort),
                             "elapsed_s": round(elapsed, 2),
                             "credential_request_attempts": (
                                 len(credential_retry_events) + 1
@@ -594,6 +493,7 @@ def main():
                             **response_metadata,
                             "usage": usage,
                             "cost_usd": cost,
+                            "pricing": openai_pricing_metadata(model),
                             "evaluation": evaluation,
                             "recoverable_evaluation": recoverable_evaluation,
                             "outcome": outcome,
@@ -619,11 +519,9 @@ def main():
                     results.append(
                         {
                             **run_metadata,
-                            "max_tokens": request_max_tokens,
                             "scenario": scenario,
                             "model": model,
                             "effort": effort,
-                            "reasoning": describe_reasoning(model, effort),
                             "elapsed_s": round(elapsed, 2),
                             "credential_request_attempts": getattr(
                                 e,
@@ -635,16 +533,9 @@ def main():
                             "request_attempts": request_attempts,
                             "retry_count": len(retry_events),
                             "retry_events": retry_events,
+                            "pricing": openai_pricing_metadata(model),
                             "outcome": "endpoint_error",
                             "error": str(e),
-                            "error_status_code": (
-                                e.response.status_code
-                                if e.response is not None
-                                else None
-                            ),
-                            "error_response_body": (
-                                e.response.text if e.response is not None else None
-                            ),
                             "evaluation": {
                                 "status": "error",
                                 "correct": False,
@@ -665,11 +556,9 @@ def main():
                     results.append(
                         {
                             **run_metadata,
-                            "max_tokens": request_max_tokens,
                             "scenario": scenario,
                             "model": model,
                             "effort": effort,
-                            "reasoning": describe_reasoning(model, effort),
                             "elapsed_s": round(elapsed, 2),
                             "credential_request_attempts": getattr(
                                 e,
@@ -681,6 +570,7 @@ def main():
                             "request_attempts": request_attempts,
                             "retry_count": len(retry_events),
                             "retry_events": retry_events,
+                            "pricing": openai_pricing_metadata(model),
                             "outcome": "endpoint_error",
                             "error": str(e),
                             "evaluation": {
@@ -702,8 +592,8 @@ def main():
         *(len(f"{r['elapsed_s']:.2f}s") for r in results if "elapsed_s" in r),
     )
     header = (
-        f"{'SCENARIO':{SCENARIO_WIDTH}s} | {'MODEL':30s} | {'LEVEL':7s} | {'TIME':>{time_width}s} | {'IN':>6s} | "
-        f"{'OUT':>6s} | {'TOTAL':>6s} | {'COST':>9s} | {'OUTCOME':{OUTCOME_WIDTH}s}"
+        f"{'SCENARIO':{SCENARIO_WIDTH}s} | {'MODEL':30s} | {'EFFORT':7s} | {'TIME':>{time_width}s} | {'IN':>6s} | "
+        f"{'REASON':>7s} | {'OUT':>6s} | {'TOTAL':>6s} | {'COST':>9s} | {'OUTCOME':{OUTCOME_WIDTH}s}"
     )
     print(header)
     print("-" * len(header))
@@ -725,6 +615,7 @@ def main():
             print(
                 f"{r['scenario']:{SCENARIO_WIDTH}s} | {r['model']:30s} | {r['effort']:7s} | "
                 f"{elapsed_str:>{time_width}s} | {str(u['input_tokens']):>6s} "
+                f"| {str(u['reasoning_tokens']):>7s} "
                 f"| {str(u['output_tokens']):>6s} | {str(u['total_tokens']):>6s} | {cost_str:>9s} | {result_str:{OUTCOME_WIDTH}s}"
             )
     print("-" * len(header))

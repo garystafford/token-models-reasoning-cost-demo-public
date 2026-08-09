@@ -1,16 +1,21 @@
 #!/usr/bin/env python3
-"""Run the scientific field-research suite across OpenAI models, cold-cache."""
+"""Run the scientific field-research suite across OpenAI models."""
 
+import sys
 from pathlib import Path
 
-import operations_bedrock_reasoning_benchmark_openai as benchmark
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from benchmarks.operations import benchmark_openai as benchmark
 from reasoning_benchmark_evaluation import load_expected_answers
-from scientific_verify_answer_key import verify_answer_key
+from benchmarks.scientific.verify_answer_key import verify_answer_key
 
 
 ROOT = Path(__file__).resolve().parent
-PROMPT_SUITE_PATH = ROOT / "scientific_reasoning_benchmark_prompts.json"
-ANSWER_KEY_PATH = ROOT / "scientific_reasoning_benchmark_expected_answers.json"
+PROMPT_SUITE_PATH = ROOT / "prompts.json"
+ANSWER_KEY_PATH = ROOT / "expected_answers.json"
 
 
 def configure_scientific_suite() -> None:

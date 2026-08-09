@@ -1,0 +1,35 @@
+{
+  "version": 2,
+  "domain": "resilience",
+  "answers": {
+    "access_policy": {
+      "effective_read_resources": ["atlas", "cedar", "delta", "incident"],
+      "can_export_reports": false,
+      "can_query_audit": true
+    },
+    "integrity_checksum": {
+      "valid_record_ids": ["ARC-18426-3", "ARC-57243-7"],
+      "valid_payload_sum": 75669
+    },
+    "audit_log_replay": {
+      "final_balances": {"blue": 6, "red": 10},
+      "rejected_event_ids": ["E-13"]
+    },
+    "version_resolution": {
+      "engine_release": "E6",
+      "parser_release": "P5",
+      "console_release": "C1",
+      "total_risk_score": 18
+    },
+    "replica_placement": {
+      "site_ids": ["A", "D", "F", "G"],
+      "resilience_score": 20,
+      "total_cost_units": 25
+    },
+    "recovery_schedule": {
+      "recovered_task_ids": ["Analytics", "Audit", "Identity", "Ledger", "Search"],
+      "total_priority_points": 19,
+      "completion_time_utc": "10:50"
+    }
+  }
+}

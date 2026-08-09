@@ -1,0 +1,36 @@
+{
+  "version": 2,
+  "domain": "resilience",
+  "scenarios": [
+    {
+      "id": "access_policy",
+      "difficulty": "simple",
+      "prompt": "Determine an account's effective permissions. An effective permission is the union of its role permissions and direct grants, minus any direct denies. A direct deny always wins. The account is active.\n\nRole permissions:\n- curator: read:atlas, read:birch, read:delta, export:reports\n- auditor: read:birch, read:cedar, query:audit\n- responder: read:cedar, read:incident, query:audit\n\nThe account has roles curator and auditor. Its direct grant is read:incident. Its direct denies are read:birch and export:reports.\n\nList effective read resources alphabetically.\n\nReturn one valid JSON object only, with no Markdown or explanatory prose:\n{\"effective_read_resources\": [\"<resource>\", \"...\"], \"can_export_reports\": <true or false>, \"can_query_audit\": <true or false>}"
+    },
+    {
+      "id": "integrity_checksum",
+      "difficulty": "simple",
+      "prompt": "Validate three archival record identifiers using the checksum rule below. For a five-digit payload d1d2d3d4d5, its check digit is (7*d1 + 3*d2 + 9*d3 + 5*d4 + d5) modulo 10. A record is valid only when its declared final digit equals that check digit.\n\nRecords:\n- ARC-57243-7\n- ARC-18426-3\n- ARC-93017-6\n\nFor all valid records only, add their five-digit payloads as ordinary base-10 integers. List valid record IDs alphabetically.\n\nReturn one valid JSON object only, with no Markdown or explanatory prose:\n{\"valid_record_ids\": [\"<record id>\", \"...\"], \"valid_payload_sum\": <integer>}"
+    },
+    {
+      "id": "audit_log_replay",
+      "difficulty": "moderate",
+      "prompt": "Replay this quota audit log. Initial balances are red=10 and blue=7; each pool has maximum capacity 14. Process events in ascending timestamp order; when timestamps tie, process event IDs alphabetically. An event is rejected in full if it would make a source negative or a destination exceed capacity. A rejected event changes neither balance.\n\nActions:\n- allocate pool amount: subtract amount from that pool.\n- release pool amount: add amount to that pool.\n- move source destination amount: subtract from source and add to destination atomically.\n\nEvents:\n- E-10, 09:00, allocate, red, 4\n- E-12, 09:05, release, blue, 2\n- E-11, 09:05, move, red, blue, 5\n- E-13, 09:10, allocate, blue, 15\n- E-14, 09:15, release, red, 1\n- E-15, 09:20, move, blue, red, 8\n\nReturn one valid JSON object only, with no Markdown or explanatory prose:\n{\"final_balances\": {\"blue\": <integer>, \"red\": <integer>}, \"rejected_event_ids\": [\"<event id>\", \"...\"]}"
+    },
+    {
+      "id": "version_resolution",
+      "difficulty": "moderate",
+      "prompt": "Select exactly one engine, parser, and console release. A compatible bundle must satisfy every stated requirement. The deployment policy requires CSV and JSON support, streaming support, and trace support. Choose the compatible bundle with the lowest total risk score. If scores tie, choose the lexicographically smallest tuple of release IDs in engine, parser, console order.\n\nEngines:\n- E4: API 4; features core, trace; risk 6\n- E5: API 5; features core, streaming; risk 8\n- E6: API 6; features core, streaming, trace; risk 11\n\nParsers:\n- P4: compatible with API 4 only; formats CSV; risk 3\n- P5: compatible with API 5 or 6; formats CSV, JSON; risk 5\n- P6: compatible with API 6 only; formats CSV, JSON, XML; risk 7\n\nConsoles:\n- C1: requires CSV; risk 2\n- C2: requires JSON and streaming; risk 4\n- C3: requires XML and trace; risk 5\n\nReturn one valid JSON object only, with no Markdown or explanatory prose:\n{\"engine_release\": \"<engine id>\", \"parser_release\": \"<parser id>\", \"console_release\": \"<console id>\", \"total_risk_score\": <integer>}"
+    },
+    {
+      "id": "replica_placement",
+      "difficulty": "complex",
+      "prompt": "Place exactly four archive replicas, selecting one site from each region (North, South, East, West). At least one selected site must provide immutable storage, and total cost may not exceed 26 units.\n\nThe resilience score is the sum of selected capacity points minus twice the sum of selected risk points. Choose the valid placement with the greatest resilience score. If scores tie, choose the lower total cost; if still tied, choose the lexicographically smallest alphabetical list of site IDs.\n\n| Site | Region | Capacity points | Risk points | Cost units | Immutable storage |\n| A | North | 7 | 2 | 5 | no |\n| B | North | 9 | 1 | 8 | yes |\n| C | South | 8 | 2 | 6 | no |\n| D | South | 10 | 1 | 9 | yes |\n| E | East | 7 | 1 | 7 | yes |\n| F | East | 11 | 3 | 6 | no |\n| G | West | 8 | 2 | 5 | no |\n| H | West | 9 | 1 | 8 | yes |\n\nReturn one valid JSON object only, with no Markdown or explanatory prose:\n{\"site_ids\": [\"<site id>\", \"...\"], \"resilience_score\": <integer>, \"total_cost_units\": <integer>}"
+    },
+    {
+      "id": "recovery_schedule",
+      "difficulty": "complex",
+      "prompt": "A two-team incident recovery starts at 08:00 and must finish by 11:00. The Platform SRE team and the Application SRE team can each run only one task at a time. All task starts and finishes are on 10-minute boundaries. Identity and Ledger are mandatory; every other task is optional. A task may start as soon as all of its dependencies have finished.\n\n| Task | SRE team | Duration (minutes) | Dependencies | Priority points |\n| Identity | Platform SRE | 40 | none | 0 |\n| Ledger | Platform SRE | 60 | Identity | 0 |\n| Search | Application SRE | 50 | Identity | 4 |\n| Portal | Application SRE | 60 | Search | 11 |\n| Media | Application SRE | 60 | Identity | 10 |\n| Analytics | Application SRE | 40 | Search | 7 |\n| Audit | Platform SRE | 40 | Ledger, Analytics | 8 |\n\nChoose the feasible task set with the greatest total priority points. If totals tie, choose the one that finishes earlier; if still tied, choose the lexicographically smallest alphabetical list of recovered task IDs.\n\nReturn one valid JSON object only, with no Markdown or explanatory prose:\n{\"recovered_task_ids\": [\"<task id>\", \"...\"], \"total_priority_points\": <integer>, \"completion_time_utc\": \"HH:MM\"}"
+    }
+  ]
+}

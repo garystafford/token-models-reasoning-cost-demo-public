@@ -7,8 +7,8 @@ from pathlib import Path
 from typing import Any, Iterable
 
 
-ANSWER_KEY_PATH = Path(__file__).with_name(
-    "operations_reasoning_benchmark_expected_answers.json"
+ANSWER_KEY_PATH = (
+    Path(__file__).parent / "benchmarks" / "operations" / "expected_answers.json"
 )
 FENCED_JSON_PATTERN = re.compile(r"```json\s*(.*?)\s*```", re.IGNORECASE | re.DOTALL)
 OUTCOME_ORDER = (

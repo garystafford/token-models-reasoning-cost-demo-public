@@ -24,6 +24,31 @@ OPENAI_STANDARD_PRICING_PER_1M = {
     "openai.gpt-5.5": {"input": 5.50, "output": 33.00},
 }
 
+ANTHROPIC_PRICING_AS_OF = "2026-08-01"
+ANTHROPIC_PRICING_SOURCE = "https://aws.amazon.com/bedrock/pricing/"
+# Sonnet uses the announced $3/$15 standard rates that take effect after its
+# $2/$10 launch promotion ends on August 31, 2026. Prompt caching is disabled.
+ANTHROPIC_STANDARD_PRICING_PER_1M = {
+    "anthropic.claude-fable-5": {"input": 10.00, "output": 50.00},
+    "anthropic.claude-opus-5": {"input": 5.00, "output": 25.00},
+    "anthropic.claude-sonnet-5": {"input": 3.00, "output": 15.00},
+    "anthropic.claude-haiku-4-5": {"input": 1.00, "output": 5.00},
+}
+
+
+def estimate_anthropic_standard_cost(model: str, usage: dict) -> float | None:
+    """Estimate standard on-demand Claude cost with caching disabled."""
+    rates = ANTHROPIC_STANDARD_PRICING_PER_1M.get(model)
+    if rates is None:
+        return None
+
+    input_tokens = usage.get("input_tokens") or 0
+    output_tokens = usage.get("output_tokens") or 0
+    cost = (input_tokens / 1_000_000) * rates["input"] + (
+        output_tokens / 1_000_000
+    ) * rates["output"]
+    return round(cost, 6)
+
 
 def estimate_openai_standard_cost(model: str, usage: dict) -> float | None:
     """Estimate standard on-demand cost without cache-read discounts."""
