@@ -98,7 +98,7 @@ rsync -avz \
   --exclude '**/.DS_Store' \
   --exclude '.gitignore' \
   --exclude 'results/' \
-  -e "ssh -i ~/.ssh/@{YOUR_SSH_KEY}" \
+  -e "ssh -i ~/.ssh/${YOUR_SSH_KEY}" \
   . \
   "ec2-user@${YOUR_EC2_IP_ADDRESS}:~/token_models_reasoning_demo/"
 ```
