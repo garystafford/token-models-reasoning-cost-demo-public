@@ -139,36 +139,33 @@ Each benchmark case gets a fresh Bedrock bearer token from the active AWS creden
 
 The timestamped JSON result file is atomically updated after every completed call. If a process is interrupted, the file preserves all calls completed up to that point. A checkpoint is partial evidence and does not automatically resume the remaining combinations.
 
-### Run The Business-Operations Suite In The Background
+### Run All Benchmark Suites In The Background
 
-Use `nohup` to run both benchmarks sequentially in one background process that continues after the terminal closes. Change the max value below to run the complete cycles n times, with Anthropic followed by OpenAI in each cycle:
+Use the standalone [`scripts/run_reasoning_benchmarks.sh`](scripts/run_reasoning_benchmarks.sh)
+utility instead of maintaining an inline shell loop. It runs all six benchmark
+modules sequentially, supports repeated cycles through `RUNS`, and reports
+module failures:
 
 ```bash
-nohup sh -c '
-for run in {1..3}; do
-  echo "Starting benchmark cycle $run of 3"
-  python -u -m benchmarks.operations.benchmark_anthropic
-  python -u -m benchmarks.operations.benchmark_openai
-done
-' > operations-benchmark.log 2>&1 &
+nohup ./scripts/run_reasoning_benchmarks.sh \
+  > reasoning-benchmark.log 2>&1 &
 
 BENCHMARK_PID=$!
-echo "$BENCHMARK_PID" > operations-benchmark.pid
+echo "$BENCHMARK_PID" > reasoning-benchmark.pid
 echo "Benchmark PID: $BENCHMARK_PID"
 ```
 
-Follow the three-cycle run with:
+For multiple complete cycles:
 
 ```bash
-tail -f operations-benchmark.log
+RUNS=3 nohup ./scripts/run_reasoning_benchmarks.sh \
+  > reasoning-benchmark.log 2>&1 &
 ```
-
-Running sequentially avoids introducing additional Bedrock throttling and local network contention into latency and retry measurements.
 
 Follow the live output:
 
 ```bash
-tail -f operations-benchmark.log
+tail -f reasoning-benchmark.log
 ```
 
 Press `Ctrl-C` to stop following the log. This does not stop the benchmark.
@@ -179,16 +176,16 @@ Inspect the process using the PID printed when it started:
 ps -p "$BENCHMARK_PID" -o pid,etime,state,command
 ```
 
-After opening a new terminal, where `BENCHMARK_PID` is no longer defined, find either running benchmark by script name:
+After opening a new terminal, where `BENCHMARK_PID` is no longer defined, find the utility:
 
 ```bash
-pgrep -fl 'benchmarks\.operations\.benchmark_(anthropic|openai)'
+pgrep -fl 'run_reasoning_benchmarks\.sh'
 ```
 
-No matching process means both scripts have finished or the run stopped. Check the end of the log for completion or errors:
+No matching process means the utility has finished or stopped. Check the end of the log for completion or errors:
 
 ```bash
-tail -n 50 operations-benchmark.log
+tail -n 50 reasoning-benchmark.log
 ```
 
 The Mac must remain awake and connected to the network while the benchmarks run.
@@ -211,17 +208,17 @@ pkill -TERM -P "$BENCHMARK_PID"
 kill -TERM "$BENCHMARK_PID"
 ```
 
-In a new terminal, find the running benchmark PID before stopping it:
+In a new terminal, find the utility PID before stopping it:
 
 ```bash
-pgrep -fl 'bedrock_.*reasoning_benchmark.*\.py'
+pgrep -fl 'run_reasoning_benchmarks\.sh'
 kill -TERM <PID>
 ```
 
-Verify that no benchmark scripts remain:
+Verify that the utility has stopped:
 
 ```bash
-pgrep -fl 'bedrock_.*reasoning_benchmark.*\.py'
+pgrep -fl 'run_reasoning_benchmarks\.sh'
 ```
 
 No output means the scripts have stopped. If a process ignores the graceful
@@ -254,25 +251,26 @@ python blog/generate_blog_charts.py \
 
 The Anthropic benchmark runs:
 
-| Model            | Reasoning levels              |
-| ---------------- | ----------------------------- |
-| Claude Opus 5    | low, medium, high, xhigh, max |
-| Claude Sonnet 5  | low, medium, high, xhigh, max |
-| Claude Fable 5   | low, medium, high, xhigh, max |
-| Claude Haiku 4.5 | low, medium, high             |
+| Model            | Reasoning levels                   |
+| ---------------- | ---------------------------------- |
+| Claude Opus 5    | none, low, medium, high, xhigh, max |
+| Claude Sonnet 5  | none, low, medium, high, xhigh, max |
+| Claude Fable 5   | none, low, medium, high, xhigh, max |
+| Claude Haiku 4.5 | none, low, medium, high             |
 
 Opus, Sonnet, and Fable use adaptive thinking. Haiku uses extended thinking with explicit budgets.
 
 The OpenAI benchmark runs:
 
-| Model         | Reasoning levels              |
-| ------------- | ----------------------------- |
-| GPT-5.6 Sol   | low, medium, high, xhigh, max |
-| GPT-5.6 Terra | low, medium, high, xhigh, max |
-| GPT-5.6 Luna  | low, medium, high, xhigh, max |
-| GPT-5.5       | low, medium, high, xhigh      |
+| Model         | Reasoning levels                   |
+| ------------- | ---------------------------------- |
+| GPT-5.6 Sol   | none, low, medium, high, xhigh, max |
+| GPT-5.6 Terra | none, low, medium, high, xhigh, max |
+| GPT-5.6 Luna  | none, low, medium, high, xhigh, max |
+| GPT-5.5       | none, low, medium, high, xhigh     |
 
-The benchmarks intentionally start at `low`; they do not include a no-reasoning baseline.
+`none` is the no-reasoning setting. It is included as a baseline in each model
+matrix.
 
 ## Business-Operations Prompt Suite
 
