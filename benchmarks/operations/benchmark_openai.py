@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """
 Cycles through GPT-5.6 Sol, Terra, Luna, and GPT-5.5 on Amazon Bedrock across
-their supported reasoning-effort levels, running a shared six-scenario prompt
-suite at each level with prompt caching disabled.
+their supported reasoning-effort levels, including a no-reasoning baseline,
+running a shared six-scenario prompt suite at each level with prompt caching
+disabled.
 
 Note: These models are served via the OpenAI-compatible Responses API on the
 bedrock-mantle endpoint, not the native bedrock-runtime InvokeModel API.
@@ -70,12 +71,10 @@ Do not include Markdown, code fences, prose, analysis, explanations, or any text
 before or after the JSON object."""
 
 MODEL_EFFORTS = {
-    "openai.gpt-5.6-sol": ("low", "medium", "high", "xhigh", "max"),
-    "openai.gpt-5.6-terra": ("low", "medium", "high", "xhigh", "max"),
-    "openai.gpt-5.6-luna": ("low", "medium", "high", "xhigh", "max"),
-    # GPT-5.5 supports none through xhigh, but the benchmark intentionally starts
-    # at low so every entry performs some reasoning.
-    "openai.gpt-5.5": ("low", "medium", "high", "xhigh"),
+    "openai.gpt-5.6-sol": ("none", "low", "medium", "high", "xhigh", "max"),
+    "openai.gpt-5.6-terra": ("none", "low", "medium", "high", "xhigh", "max"),
+    "openai.gpt-5.6-luna": ("none", "low", "medium", "high", "xhigh", "max"),
+    "openai.gpt-5.5": ("none", "low", "medium", "high", "xhigh"),
 }
 
 PROMPT_SUITE_PATH = Path(__file__).with_name("prompts.json")

@@ -6,9 +6,9 @@ supported reasoning level.
 
 Opus 5, Sonnet 5, and Fable 5 use adaptive thinking and an effort level. Haiku
 4.5 uses extended thinking, so its low, medium, and high benchmark entries map to
-explicit thinking budgets. The script uses the Anthropic Messages API exposed
-by the bedrock-mantle endpoint, rather than the OpenAI-compatible Responses
-API.
+explicit thinking budgets. Every model also gets a no-thinking baseline. The
+script uses the Anthropic Messages API exposed by the bedrock-mantle endpoint,
+rather than the OpenAI-compatible Responses API.
 
 Assumes you're already logged in (for example, `aws sso login`) and uses the
 default AWS credential chain, with no profile/session wiring needed.
@@ -76,18 +76,19 @@ before or after the JSON object."""
 MODEL_CONFIGS = {
     "anthropic.claude-fable-5": {
         "reasoning_mode": "adaptive thinking",
-        "efforts": ("low", "medium", "high", "xhigh", "max"),
+        "efforts": ("none", "low", "medium", "high", "xhigh", "max"),
     },
     "anthropic.claude-opus-5": {
         "reasoning_mode": "adaptive thinking",
-        "efforts": ("low", "medium", "high", "xhigh", "max"),
+        "efforts": ("none", "low", "medium", "high", "xhigh", "max"),
     },
     "anthropic.claude-sonnet-5": {
         "reasoning_mode": "adaptive thinking",
-        "efforts": ("low", "medium", "high", "xhigh", "max"),
+        "efforts": ("none", "low", "medium", "high", "xhigh", "max"),
     },
     "anthropic.claude-haiku-4-5": {
         "reasoning_mode": "extended thinking",
+        "efforts": ("none", "low", "medium", "high"),
         # Haiku 4.5 does not support adaptive-thinking effort. These labels
         # make its explicit thinking budgets comparable to the other benchmarks.
         "thinking_budgets": {
@@ -211,6 +212,9 @@ REQUEST_DEADLINE_SECONDS = 600
 
 def get_reasoning_config(model: str, effort: str) -> dict:
     """Build the native Claude thinking configuration for a benchmark entry."""
+    if effort == "none":
+        return {}
+
     config = MODEL_CONFIGS[model]
 
     if config["reasoning_mode"] == "adaptive thinking":
@@ -228,6 +232,9 @@ def get_reasoning_config(model: str, effort: str) -> dict:
 
 def describe_reasoning(model: str, effort: str) -> str:
     """Return a concise label for terminal output and result records."""
+    if effort == "none":
+        return "none"
+
     config = MODEL_CONFIGS[model]
     if config["reasoning_mode"] == "adaptive thinking":
         return f"adaptive/{effort}"
