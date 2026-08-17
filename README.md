@@ -85,7 +85,7 @@ Connect to the EC2 instance:
 export YOUR_EC2_IP_ADDRESS=<YOUR_EC2_IP_ADDRESS>
 export YOUR_SSH_KEY=<YOUR_SSH_KEY>
 
-ssh -i "~/.ssh/@{YOUR_SSH_KEY} ec2-user@${YOUR_EC2_IP_ADDRESS}"
+ssh -i "~/.ssh/${YOUR_SSH_KEY}" "ec2-user@${YOUR_EC2_IP_ADDRESS}"
 ```
 
 From the local Mac, sync the project code to the EC2 instance:
