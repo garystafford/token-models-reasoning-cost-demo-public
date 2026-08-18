@@ -16,6 +16,7 @@ Requirements:
 
 import hashlib
 import json
+import os
 import sys
 import time
 from datetime import datetime, timezone
@@ -393,6 +394,18 @@ def write_results_checkpoint(results_path: Path, results: list[dict]) -> None:
     temporary_path.replace(results_path)
 
 
+def efforts_for_model(efforts: tuple[str, ...]) -> tuple[str, ...]:
+    """Apply an optional single-effort filter for focused benchmark runs."""
+    requested_effort = os.environ.get("BENCHMARK_EFFORT", "all").strip().lower()
+    if requested_effort == "all":
+        return efforts
+    if requested_effort not in {"none", "low", "medium", "high", "xhigh", "max"}:
+        raise ValueError(
+            "BENCHMARK_EFFORT must be all, none, low, medium, high, xhigh, or max"
+        )
+    return tuple(effort for effort in efforts if effort == requested_effort)
+
+
 # --- Main benchmark --------------------------------------------------------
 
 
@@ -402,12 +415,19 @@ def main():
     results = []
     run_metadata, results_path = create_run_metadata()
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
-    total_calls = len(PROMPTS) * sum(len(efforts) for efforts in MODEL_EFFORTS.values())
+    total_calls = len(PROMPTS) * sum(
+        len(efforts_for_model(efforts)) for efforts in MODEL_EFFORTS.values()
+    )
+    if total_calls == 0:
+        raise ValueError(
+            "No OpenAI model supports BENCHMARK_EFFORT="
+            f"{os.environ.get('BENCHMARK_EFFORT', 'all')!r}"
+        )
     call_number = 0
 
     for scenario, prompt in PROMPTS:
         for model, efforts in MODEL_EFFORTS.items():
-            for effort in efforts:
+            for effort in efforts_for_model(efforts):
                 call_number += 1
                 print(f"\n{'=' * 70}")
                 print(

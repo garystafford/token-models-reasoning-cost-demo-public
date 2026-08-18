@@ -6,9 +6,9 @@ supported reasoning level.
 
 Opus 5, Sonnet 5, and Fable 5 use adaptive thinking and an effort level. Haiku
 4.5 uses extended thinking, so its low, medium, and high benchmark entries map to
-explicit thinking budgets. Every model also gets a no-thinking baseline. The
-script uses the Anthropic Messages API exposed by the bedrock-mantle endpoint,
-rather than the OpenAI-compatible Responses API.
+explicit thinking budgets. Models that support disabled thinking also get a
+no-thinking baseline. The script uses the Anthropic Messages API exposed by the
+bedrock-mantle endpoint, rather than the OpenAI-compatible Responses API.
 
 Assumes you're already logged in (for example, `aws sso login`) and uses the
 default AWS credential chain, with no profile/session wiring needed.
@@ -20,6 +20,7 @@ Requirements:
 import argparse
 import hashlib
 import json
+import os
 import sys
 import time
 from datetime import datetime, timezone
@@ -76,7 +77,9 @@ before or after the JSON object."""
 MODEL_CONFIGS = {
     "anthropic.claude-fable-5": {
         "reasoning_mode": "adaptive thinking",
-        "efforts": ("none", "low", "medium", "high", "xhigh", "max"),
+        # Fable 5 only supports adaptive thinking; disabled thinking is
+        # rejected by the provider.
+        "efforts": ("low", "medium", "high", "xhigh", "max"),
     },
     "anthropic.claude-opus-5": {
         "reasoning_mode": "adaptive thinking",
@@ -213,7 +216,9 @@ REQUEST_DEADLINE_SECONDS = 600
 def get_reasoning_config(model: str, effort: str) -> dict:
     """Build the native Claude thinking configuration for a benchmark entry."""
     if effort == "none":
-        return {}
+        if model == "anthropic.claude-fable-5":
+            raise ValueError("Claude Fable 5 does not support disabled thinking")
+        return {"thinking": {"type": "disabled"}}
 
     config = MODEL_CONFIGS[model]
 
@@ -233,7 +238,7 @@ def get_reasoning_config(model: str, effort: str) -> dict:
 def describe_reasoning(model: str, effort: str) -> str:
     """Return a concise label for terminal output and result records."""
     if effort == "none":
-        return "none"
+        return "disabled"
 
     config = MODEL_CONFIGS[model]
     if config["reasoning_mode"] == "adaptive thinking":
@@ -476,6 +481,19 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def efforts_for_config(config: dict) -> tuple[str, ...]:
+    """Apply an optional single-effort filter without enabling unsupported modes."""
+    efforts = tuple(config.get("efforts", config.get("thinking_budgets", {}).keys()))
+    requested_effort = os.environ.get("BENCHMARK_EFFORT", "all").strip().lower()
+    if requested_effort == "all":
+        return efforts
+    if requested_effort not in {"none", "low", "medium", "high", "xhigh", "max"}:
+        raise ValueError(
+            "BENCHMARK_EFFORT must be all, none, low, medium, high, xhigh, or max"
+        )
+    return tuple(effort for effort in efforts if effort == requested_effort)
+
+
 def main():
     args = parse_args()
     selected_configs = (
@@ -488,14 +506,19 @@ def main():
     run_metadata, results_path = create_run_metadata(results_basename, args.model)
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
     total_calls = len(PROMPTS) * sum(
-        len(config.get("efforts", config.get("thinking_budgets", {})))
+        len(efforts_for_config(config))
         for config in selected_configs.values()
     )
+    if total_calls == 0:
+        raise ValueError(
+            "No selected Anthropic model supports BENCHMARK_EFFORT="
+            f"{os.environ.get('BENCHMARK_EFFORT', 'all')!r}"
+        )
     call_number = 0
 
     for scenario, prompt in PROMPTS:
         for model, config in selected_configs.items():
-            efforts = config.get("efforts", config.get("thinking_budgets", {}).keys())
+            efforts = efforts_for_config(config)
             for effort in efforts:
                 request_max_tokens = max_tokens_for_model(model)
                 call_number += 1

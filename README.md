@@ -4,9 +4,11 @@ For background, results, and detailed guidance on using this repository, see the
 
 This project compares reasoning-token usage, latency, and estimated on-demand cost across Anthropic Claude and OpenAI GPT models on Amazon Bedrock Mantle. It includes three independently versioned benchmark suites: business operations, scientific field research, and resilience.
 
-All requests is billable. Review the Amazon Bedrock Mantle public on-demand pricing before running a full benchmark.
+All requests are billable. Review the Amazon Bedrock Mantle public on-demand pricing before running a full benchmark.
 
 ![Final Results](./charts/linkedin-token-v3.png)
+
+![No-reasoning results](./charts/none-reasoning-model-results.png)
 
 ## Benchmark Suites
 
@@ -129,6 +131,14 @@ python -m benchmarks.operations.benchmark_anthropic
 python -m benchmarks.operations.benchmark_openai
 ```
 
+These commands run all supported reasoning levels. To run only the
+no-reasoning setting for an individual provider:
+
+```bash
+BENCHMARK_EFFORT=none python -u -m benchmarks.operations.benchmark_anthropic
+BENCHMARK_EFFORT=none python -u -m benchmarks.operations.benchmark_openai
+```
+
 Run the scripts from this project directory so their result files are written here. Verify the answer key without making model requests:
 
 ```bash
@@ -144,7 +154,8 @@ The timestamped JSON result file is atomically updated after every completed cal
 Use the standalone [`scripts/run_reasoning_benchmarks.sh`](scripts/run_reasoning_benchmarks.sh)
 utility instead of maintaining an inline shell loop. It runs all six benchmark
 modules sequentially, supports repeated cycles through `RUNS`, and reports
-module failures:
+module failures. `BENCHMARK_EFFORT=all` is the default; accepted values are
+`all`, `none`, `low`, `medium`, `high`, `xhigh`, and `max`:
 
 ```bash
 nohup ./scripts/run_reasoning_benchmarks.sh \
@@ -162,10 +173,27 @@ RUNS=3 nohup ./scripts/run_reasoning_benchmarks.sh \
   > reasoning-benchmark.log 2>&1 &
 ```
 
+To run only the no-reasoning setting:
+
+```bash
+BENCHMARK_EFFORT=none nohup ./scripts/run_reasoning_benchmarks.sh \
+  > no-reasoning-benchmark.log 2>&1 &
+```
+
+The Anthropic no-reasoning run uses explicit `thinking: {"type": "disabled"}`
+for models that support it. Claude Fable 5 does not support disabled thinking,
+so it is skipped in `BENCHMARK_EFFORT=none` runs.
+
 Follow the live output:
 
 ```bash
 tail -f reasoning-benchmark.log
+```
+
+For the no-reasoning command above, use:
+
+```bash
+tail -f no-reasoning-benchmark.log
 ```
 
 Press `Ctrl-C` to stop following the log. This does not stop the benchmark.
@@ -255,7 +283,7 @@ The Anthropic benchmark runs:
 | ---------------- | ---------------------------------- |
 | Claude Opus 5    | none, low, medium, high, xhigh, max |
 | Claude Sonnet 5  | none, low, medium, high, xhigh, max |
-| Claude Fable 5   | none, low, medium, high, xhigh, max |
+| Claude Fable 5   | low, medium, high, xhigh, max        |
 | Claude Haiku 4.5 | none, low, medium, high             |
 
 Opus, Sonnet, and Fable use adaptive thinking. Haiku uses extended thinking with explicit budgets.
@@ -269,8 +297,9 @@ The OpenAI benchmark runs:
 | GPT-5.6 Luna  | none, low, medium, high, xhigh, max |
 | GPT-5.5       | none, low, medium, high, xhigh     |
 
-`none` is the no-reasoning setting. It is included as a baseline in each model
-matrix.
+`none` is the no-reasoning setting where the provider supports explicitly
+disabling thinking. Claude Fable 5 only supports adaptive thinking and is not
+included in the `none` baseline.
 
 ## Business-Operations Prompt Suite
 
@@ -341,6 +370,15 @@ not mix them into the business-operations or scientific run matrices.
 ## Results And Cost Estimates
 
 Each script prints a summary and writes its full response records to a timestamped provider-specific JSON file under `results/`.
+
+The corrected no-reasoning aggregate is documented in
+[`results/none_reasoning_summary.md`](results/none_reasoning_summary.md), with
+the companion table graphic at
+[`charts/none-reasoning-model-results.png`](charts/none-reasoning-model-results.png).
+The Anthropic no-reasoning runs use explicit disabled thinking for Opus 5,
+Sonnet 5, and Haiku 4.5. Fable 5 is excluded because disabled thinking is not
+supported. A small OpenAI telemetry anomaly is marked in the summary rather
+than silently treated as measured zero.
 
 - `results/operations_bedrock_reasoning_benchmark_anthropic_<variant>_<timestamp>.json`
 - `results/operations_bedrock_reasoning_benchmark_openai_<variant>_<timestamp>.json`
