@@ -14,15 +14,15 @@ Run and analyze the benchmark suites separately. They use the same provider mode
 
 | Benchmark suite           | Focus                                                                                                       | Prompt suite                         | Answer key                                    | Verifier                                  | Benchmark variant              |
 | ------------------------- | ----------------------------------------------------------------------------------------------------------- | ------------------------------------ | --------------------------------------------- | ----------------------------------------- | ------------------------------ |
-| Business operations       | Pipeline planning, policy, extraction, and debugging                                                        | `benchmarks/operations/prompts.json` | `benchmarks/operations/expected_answers.json` | `benchmarks.operations.verify_answer_key` | `json_contract_v5`             |
+| Business operations       | Pipeline planning, policy, extraction, and debugging                                                        | `benchmarks/operations/prompts.json` | `benchmarks/operations/expected_answers.json` | `benchmarks.operations.verify_answer_key` | `json_contract_v5` |
 | Scientific field research | Chemistry, genetics, ecology, astronomy, laboratory allocation, and vessel scheduling                       | `benchmarks/scientific/prompts.json` | `benchmarks/scientific/expected_answers.json` | `benchmarks.scientific.verify_answer_key` | `scientific_field_research_v1` |
-| Resilience                | Access policy, data integrity, audit replay, version resolution, replica placement, and recovery scheduling | `benchmarks/resilience/prompts.json` | `benchmarks/resilience/expected_answers.json` | `benchmarks.resilience.verify_answer_key` | `resilience_v1`                |
+| Resilience                | Access policy, data integrity, audit replay, version resolution, replica placement, and recovery scheduling | `benchmarks/resilience/prompts.json` | `benchmarks/resilience/expected_answers.json` | `benchmarks.resilience.verify_answer_key` | `resilience_v1` |
 
 ## Prerequisites
 
-- Python 3.10 or later
-- AWS CLI configured with credentials that can invoke the selected Bedrock models in `us-east-1`
-- Access to the required Amazon Bedrock marketplace products and model IDs
+* Python 3.10 or later
+* AWS CLI configured with credentials that can invoke the selected Bedrock models in `us-east-1`
+* Access to the required Amazon Bedrock marketplace products and model IDs
 
 ## Local Setup
 
@@ -59,7 +59,7 @@ aws sso login --profile "$AWS_PROFILE"
 
 ## Fable 5 Account Setup
 
-The Anthropic benchmark includes Claude Fable 5 by default. Before running it, set the AWS account's Amazon Bedrock data-retention mode to `provider_data_share`. Without this account-level data-sharing setting, Fable 5 requests fail.
+The Anthropic benchmark includes Claude Fable 5 by default. Before running it, set the AWS account's Amazon Bedrock data-retention mode to `provider_data_share` . Without this account-level data-sharing setting, Fable 5 requests fail.
 
 AWS does not provide a console UI for this setting at launch. With a current AWS CLI, inspect the setting first:
 
@@ -151,9 +151,9 @@ The timestamped JSON result file is atomically updated after every completed cal
 
 Use the standalone [`scripts/run_reasoning_benchmarks.sh`](scripts/run_reasoning_benchmarks.sh)
 utility instead of maintaining an inline shell loop. It runs all six benchmark
-modules sequentially, supports repeated cycles through `RUNS`, and reports
+modules sequentially, supports repeated cycles through `RUNS` , and reports
 module failures. `BENCHMARK_EFFORT=all` is the default; accepted values are
-`all`, `none`, `low`, `medium`, `high`, `xhigh`, and `max`:
+`all` , `none` , `low` , `medium` , `high` , `xhigh` , and `max` :
 
 ```bash
 nohup ./scripts/run_reasoning_benchmarks.sh \
@@ -179,6 +179,7 @@ BENCHMARK_EFFORT=none nohup ./scripts/run_reasoning_benchmarks.sh \
 ```
 
 The Anthropic no-reasoning run uses explicit `thinking: {"type": "disabled"}`
+
 for models that support it. Claude Fable 5 does not support disabled thinking,
 so it is skipped in `BENCHMARK_EFFORT=none` runs.
 
@@ -253,12 +254,12 @@ the timestamped JSON checkpoint containing calls completed before termination.
 
 ## Logging
 
-Every business-operations `json_contract_v5` execution creates a new UTC-stamped file in `results/`, so no run overwrites another:
+Every business-operations `json_contract_v5` execution creates a new UTC-stamped file in `results/` , so no run overwrites another:
 
-- `results/operations_bedrock_reasoning_benchmark_anthropic_json_contract_v5_YYYYMMDDTHHMMSSffffffZ.json`
-- `results/operations_bedrock_reasoning_benchmark_openai_json_contract_v5_YYYYMMDDTHHMMSSffffffZ.json`
+* `results/operations_bedrock_reasoning_benchmark_anthropic_json_contract_v5_YYYYMMDDTHHMMSSffffffZ.json`
+* `results/operations_bedrock_reasoning_benchmark_openai_json_contract_v5_YYYYMMDDTHHMMSSffffffZ.json`
 
-Each record also contains `run_id`, `run_started_at_utc`, `benchmark_variant`, and SHA-256 hashes of the prompt suite, answer key, and system prompt. The chart generator rejects files with different benchmark variants or artifact hashes, incomplete run matrices, duplicate combinations, or unequal provider repetition counts. When Haiku repair files are present, it requires one complete 18-call Haiku matrix per full Anthropic run and replaces the original Haiku records before analysis. By default, it combines every full result and repair file from the newest benchmark variant:
+Each record also contains `run_id` , `run_started_at_utc` , `benchmark_variant` , and SHA-256 hashes of the prompt suite, answer key, and system prompt. The chart generator rejects files with different benchmark variants or artifact hashes, incomplete run matrices, duplicate combinations, or unequal provider repetition counts. When Haiku repair files are present, it requires one complete 18-call Haiku matrix per full Anthropic run and replaces the original Haiku records before analysis. By default, it combines every full result and repair file from the newest benchmark variant:
 
 ```bash
 python blog/generate_blog_charts.py
@@ -303,12 +304,12 @@ included in the `none` baseline.
 
 `benchmarks/operations/prompts.json` contains six shared prompts:
 
-- `pipeline_simple`
-- `pipeline_moderate`
-- `pipeline_complex`
-- `policy`
-- `extraction`
-- `debugging`
+* `pipeline_simple`
+* `pipeline_moderate`
+* `pipeline_complex`
+* `policy`
+* `extraction`
+* `debugging`
 
 Keep this file unchanged between provider runs when comparing results.
 
@@ -367,23 +368,19 @@ not mix them into the business-operations or scientific run matrices.
 
 ## Results And Cost Estimates
 
-Each script prints a summary and writes its full response records to a timestamped provider-specific JSON file under `results/`.
+Each script prints a summary and writes its full response records to a timestamped provider-specific JSON file under `results/` .
 
-The corrected no-reasoning aggregate is documented in
-[`results/none_reasoning_summary.md`](results/none_reasoning_summary.md), with
-the companion table graphic at
-[`charts/none-reasoning-model-results.png`](charts/none-reasoning-model-results.png).
 The Anthropic no-reasoning runs use explicit disabled thinking for Opus 5,
 Sonnet 5, and Haiku 4.5. Fable 5 is excluded because disabled thinking is not
 supported. A small OpenAI telemetry anomaly is marked in the summary rather
 than silently treated as measured zero.
 
-- `results/operations_bedrock_reasoning_benchmark_anthropic_<variant>_<timestamp>.json`
-- `results/operations_bedrock_reasoning_benchmark_openai_<variant>_<timestamp>.json`
-- `results/scientific_bedrock_reasoning_benchmark_anthropic_<variant>_<timestamp>.json`
-- `results/scientific_bedrock_reasoning_benchmark_openai_<variant>_<timestamp>.json`
-- `results/resilience_bedrock_reasoning_benchmark_anthropic_<variant>_<timestamp>.json`
-- `results/resilience_bedrock_reasoning_benchmark_openai_<variant>_<timestamp>.json`
+* `results/operations_bedrock_reasoning_benchmark_anthropic_<variant>_<timestamp>.json`
+* `results/operations_bedrock_reasoning_benchmark_openai_<variant>_<timestamp>.json`
+* `results/scientific_bedrock_reasoning_benchmark_anthropic_<variant>_<timestamp>.json`
+* `results/scientific_bedrock_reasoning_benchmark_openai_<variant>_<timestamp>.json`
+* `results/resilience_bedrock_reasoning_benchmark_anthropic_<variant>_<timestamp>.json`
+* `results/resilience_bedrock_reasoning_benchmark_openai_<variant>_<timestamp>.json`
 
 OpenAI estimates use standard in-region on-demand rates from the [Amazon Bedrock pricing page](https://aws.amazon.com/bedrock/pricing/). The rates used as of 2026-08-01 are:
 
@@ -398,7 +395,7 @@ GPT-5.6 cache writes use the published write rates. Cache reads are charged at t
 
 Claude Sonnet 5 uses the announced post-promotion standard rate of $3 per million input tokens and $15 per million output tokens. AWS promotional launch pricing of $2/$10 remains in effect through August 31, 2026.
 
-Each completed call is evaluated against the answer key for its suite (`benchmarks/<suite>/expected_answers.json`). The answer key is not sent to the models. A `PASS` requires valid JSON with the exact expected values and types. The strict and recoverable evaluations retain concise mismatch details in the per-call output and saved JSON record. Fenced-JSON recoveries are reported for diagnosis but discounted from comparative correctness: Anthropic models can avoid this formatting issue with a capability that is not available through Amazon Bedrock Mantle. See [The Right Model and Reasoning Level Depend on the Workload](https://garystafford.medium.com/the-right-model-and-reasoning-level-depend-on-the-workload-482a33d1d644?sharedUserId=garystafford) for the evaluation rationale.
+Each completed call is evaluated against the answer key for its suite ( `benchmarks/<suite>/expected_answers.json` ). The answer key is not sent to the models. A `PASS` requires valid JSON with the exact expected values and types. The strict and recoverable evaluations retain concise mismatch details in the per-call output and saved JSON record. Fenced-JSON recoveries are reported for diagnosis but discounted from comparative correctness: Anthropic models can avoid this formatting issue with a capability that is not available through Amazon Bedrock Mantle. See [The Right Model and Reasoning Level Depend on the Workload](https://garystafford.medium.com/the-right-model-and-reasoning-level-depend-on-the-workload-482a33d1d644?sharedUserId=garystafford) for the evaluation rationale.
 
 Every suite's answer key is independently checked by its `verify_answer_key` module. The operations verifier exhaustively enumerates the moderate selection and complex worker-allocation problems, then deterministically derives the remaining answers. Both benchmark scripts run their suite's verification automatically before their first paid request. The operations verifier can also be run directly:
 
@@ -408,23 +405,23 @@ python -m benchmarks.operations.verify_answer_key
 
 Treat a passing verifier as a reproducible check, not a substitute for review: the benchmark author or a second reviewer should confirm that the reference solver faithfully represents every prompt and tie-break rule. For a decision-grade benchmark, retain that review with the prompt-suite version.
 
-Each saved record also includes `recoverable_evaluation`. It uses the same exact answer comparison after accepting either direct JSON or exactly one `json` Markdown code fence. This separates raw response-contract compliance from underlying answer correctness. Fenced output is diagnostic only: it is excluded from the raw JSON correctness used for cross-model comparison and does not make a raw `PASS`.
+Each saved record also includes `recoverable_evaluation` . It uses the same exact answer comparison after accepting either direct JSON or exactly one `json` Markdown code fence. This separates raw response-contract compliance from underlying answer correctness. Fenced output is diagnostic only: it is excluded from the raw JSON correctness used for cross-model comparison and does not make a raw `PASS` .
 
-Each completed call also has one mutually exclusive `outcome`:
+Each completed call also has one mutually exclusive `outcome` :
 
 | Outcome          | Meaning                                                                               |
 | ---------------- | ------------------------------------------------------------------------------------- |
-| `strict`         | Correct answer returned as bare JSON                                                  |
-| `format_only`    | Correct answer recovered from exactly one JSON code fence; discounted from comparison |
+| `strict` | Correct answer returned as bare JSON                                                  |
+| `format_only` | Correct answer recovered from exactly one JSON code fence; discounted from comparison |
 | `semantic_error` | Parseable answer with values that do not match ground truth                           |
 | `policy_refusal` | Provider explicitly refused to answer                                                 |
-| `truncated`      | Provider stopped at its configured token limit before returning a correct answer      |
-| `malformed`      | Response could not be recovered as an answer                                          |
+| `truncated` | Provider stopped at its configured token limit before returning a correct answer      |
+| `malformed` | Response could not be recovered as an answer                                          |
 | `endpoint_error` | Request ended without a model response                                                |
 
 The terminal summary reports raw JSON correctness, semantic correctness, discounted format-only successes, wrong answers, policy refusals, truncations, malformed responses, and endpoint errors separately. Provider response status, refusal details, and token-limit stops are saved outside the answer text.
 
-Each request record also captures `request_attempts`, `retry_count`, and `retry_events`. A retry event records the retryable HTTP status code or connection/timeout error and its requested backoff duration. Request elapsed time includes retry backoff. The terminal summary reports total retries, calls that retried, and terminal endpoint errors.
+Each request record also captures `request_attempts` , `retry_count` , and `retry_events` . A retry event records the retryable HTTP status code or connection/timeout error and its requested backoff duration. Request elapsed time includes retry backoff. The terminal summary reports total retries, calls that retried, and terminal endpoint errors.
 
 Cost estimates use the configured standard Amazon Bedrock on-demand rates, including published cache-write charges. They do not apply promotional, batch, or cache-read discounts. Output token counts include model reasoning tokens when the provider reports them that way.
 
@@ -432,19 +429,19 @@ Cost estimates use the configured standard Amazon Bedrock on-demand rates, inclu
 
 Choosing a reasoning model is a systems problem, not a token-price lookup. A defensible evaluation should account for all of the following:
 
-- **Ground-truth integrity.** A benchmark cannot be more reliable than its answer key. Derive expected answers deterministically where possible, test the verifier itself, document acceptable equivalents, and independently review ambiguous cases.
-- **Semantic correctness.** Determine whether the answer is actually right, not merely plausible, well written, or valid JSON.
-- **Output-contract compliance.** Measure correct-but-malformed responses separately from semantic errors. A recoverable code fence may preserve the answer while still creating integration work and production risk. Report it diagnostically, but discount it when the capability to prevent it is not consistently available across the compared endpoints.
-- **Completion.** Distinguish a complete wrong answer from truncation, refusal, timeout, and endpoint failure. Each has a different cause and remedy.
-- **Gross versus productive reasoning.** Count all returned usage as consumption, but separate reasoning that produced correct answers, wrong answers, and no usable answer. Tokens spent are not necessarily tokens needed.
-- **Output-token limits.** Set a maximum loss per request. A high ceiling can accommodate difficult work, but it can also allow a failing request to consume tens of thousands of tokens before stopping.
-- **Retries.** Record attempts and cumulative latency, and assume a retry may add cost. Retry transient failures with bounded backoff; do not automatically retry deterministic client errors, truncations, or bad answers.
-- **Timeouts.** A client timeout does not prove that provider-side generation stopped or that no charge occurred. Treat usage behind timed-out requests as unknown unless the provider exposes authoritative accounting.
-- **Availability and authentication.** Track endpoint, throttling, credential, and provider errors separately from model quality. An accurate model that cannot reliably return an answer is not operationally equivalent to one that can.
-- **Latency distribution.** Averages hide long tails. Measure completion latency by task, model, effort, outcome, and attempt, then evaluate p50, p95, p99, and timeout rates at production scale.
-- **Run-to-run variability.** Repeat every model-level-task cell. One successful response cannot establish reliability, and a non-monotonic result may be sampling noise rather than a durable property.
-- **Representative workload mix.** Weight evaluation tasks according to expected production frequency and business impact. One unusually expensive optimization problem can dominate aggregate tokens and distort conclusions.
-- **Cross-model comparability.** Reasoning labels are not standardized, tokenizers differ, and provider usage fields may not be semantically identical. Compare complete task outcomes and total cost rather than treating “high” or one token as universal units.
-- **Pricing and caching assumptions.** State whether estimates use on-demand, batch, cached, promotional, or committed-use rates. Verify actual cache reads instead of assuming repeated prompts received a discount.
-- **Safety-policy behavior.** Benign tasks can still trigger provider policies depending on wording and system context. Classify refusals separately and keep the system instruction consistent across models.
-- **Model and provider drift.** Re-run the benchmark when prompts, models, endpoints, pricing, safety behavior, or provider implementations change. A routing decision is a monitored policy, not a permanent leaderboard.
+* **Ground-truth integrity.** A benchmark cannot be more reliable than its answer key. Derive expected answers deterministically where possible, test the verifier itself, document acceptable equivalents, and independently review ambiguous cases.
+* **Semantic correctness.** Determine whether the answer is actually right, not merely plausible, well written, or valid JSON.
+* **Output-contract compliance.** Measure correct-but-malformed responses separately from semantic errors. A recoverable code fence may preserve the answer while still creating integration work and production risk. Report it diagnostically, but discount it when the capability to prevent it is not consistently available across the compared endpoints.
+* **Completion.** Distinguish a complete wrong answer from truncation, refusal, timeout, and endpoint failure. Each has a different cause and remedy.
+* **Gross versus productive reasoning.** Count all returned usage as consumption, but separate reasoning that produced correct answers, wrong answers, and no usable answer. Tokens spent are not necessarily tokens needed.
+* **Output-token limits.** Set a maximum loss per request. A high ceiling can accommodate difficult work, but it can also allow a failing request to consume tens of thousands of tokens before stopping.
+* **Retries.** Record attempts and cumulative latency, and assume a retry may add cost. Retry transient failures with bounded backoff; do not automatically retry deterministic client errors, truncations, or bad answers.
+* **Timeouts.** A client timeout does not prove that provider-side generation stopped or that no charge occurred. Treat usage behind timed-out requests as unknown unless the provider exposes authoritative accounting.
+* **Availability and authentication.** Track endpoint, throttling, credential, and provider errors separately from model quality. An accurate model that cannot reliably return an answer is not operationally equivalent to one that can.
+* **Latency distribution.** Averages hide long tails. Measure completion latency by task, model, effort, outcome, and attempt, then evaluate p50, p95, p99, and timeout rates at production scale.
+* **Run-to-run variability.** Repeat every model-level-task cell. One successful response cannot establish reliability, and a non-monotonic result may be sampling noise rather than a durable property.
+* **Representative workload mix.** Weight evaluation tasks according to expected production frequency and business impact. One unusually expensive optimization problem can dominate aggregate tokens and distort conclusions.
+* **Cross-model comparability.** Reasoning labels are not standardized, tokenizers differ, and provider usage fields may not be semantically identical. Compare complete task outcomes and total cost rather than treating “high” or one token as universal units.
+* **Pricing and caching assumptions.** State whether estimates use on-demand, batch, cached, promotional, or committed-use rates. Verify actual cache reads instead of assuming repeated prompts received a discount.
+* **Safety-policy behavior.** Benign tasks can still trigger provider policies depending on wording and system context. Classify refusals separately and keep the system instruction consistent across models.
+* **Model and provider drift.** Re-run the benchmark when prompts, models, endpoints, pricing, safety behavior, or provider implementations change. A routing decision is a monitored policy, not a permanent leaderboard.
