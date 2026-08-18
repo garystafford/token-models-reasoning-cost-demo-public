@@ -5,11 +5,20 @@ set -u
 PROJECT_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 PYTHON_BIN="${PYTHON_BIN:-python}"
 RUNS="${RUNS:-1}"
+BENCHMARK_EFFORT="${BENCHMARK_EFFORT:-all}"
 
 if [[ ! "$RUNS" =~ ^[1-9][0-9]*$ ]]; then
   echo "RUNS must be a positive integer; received: $RUNS" >&2
   exit 2
 fi
+
+case "$BENCHMARK_EFFORT" in
+  all|none|low|medium|high|xhigh|max) ;;
+  *)
+    echo "BENCHMARK_EFFORT must be all, none, low, medium, high, xhigh, or max; received: $BENCHMARK_EFFORT" >&2
+    exit 2
+    ;;
+esac
 
 cd "$PROJECT_ROOT" || exit 1
 
@@ -25,12 +34,13 @@ modules=(
 failed=()
 
 for ((run = 1; run <= RUNS; run++)); do
-  printf '\nStarting benchmark cycle %d of %d\n' "$run" "$RUNS"
+  printf '\nStarting benchmark cycle %d of %d (effort: %s)\n' \
+    "$run" "$RUNS" "$BENCHMARK_EFFORT"
 
   for module in "${modules[@]}"; do
     printf '\n[%s] Starting %s\n' "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" "$module"
 
-    if "$PYTHON_BIN" -u -m "$module"; then
+    if BENCHMARK_EFFORT="$BENCHMARK_EFFORT" "$PYTHON_BIN" -u -m "$module"; then
       printf '[%s] Completed %s\n' "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" "$module"
     else
       status=$?
