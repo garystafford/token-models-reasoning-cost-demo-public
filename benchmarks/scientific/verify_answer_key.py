@@ -9,7 +9,6 @@ from fractions import Fraction
 from pathlib import Path
 from typing import Any
 
-
 ANSWER_KEY_PATH = Path(__file__).with_name("expected_answers.json")
 
 

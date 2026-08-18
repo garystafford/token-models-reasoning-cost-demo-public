@@ -2,14 +2,11 @@
 
 import json
 import re
+from collections.abc import Iterable
 from decimal import Decimal
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any, NoReturn
 
-
-ANSWER_KEY_PATH = (
-    Path(__file__).parent / "benchmarks" / "operations" / "expected_answers.json"
-)
 FENCED_JSON_PATTERN = re.compile(r"```json\s*(.*?)\s*```", re.IGNORECASE | re.DOTALL)
 OUTCOME_ORDER = (
     "strict",
@@ -32,16 +29,18 @@ OUTCOME_LABELS = {
 
 
 def load_expected_answers(
-    scenario_ids: Iterable[str], answer_key_path: Path | None = None
+    scenario_ids: Iterable[str], answer_key_path: Path
 ) -> dict[str, dict[str, Any]]:
     """Load an answer key and ensure it covers the shared prompt suite exactly."""
-    path = answer_key_path or ANSWER_KEY_PATH
     try:
         # Keep fractional answer-key values exact. Integers remain ``int`` so
         # they continue to express the stricter <integer> output contract.
-        answer_key = json.loads(path.read_text(encoding="utf-8"), parse_float=Decimal)
+        answer_key = _load_json(answer_key_path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
-        raise RuntimeError(f"Could not load answer key: {path}") from exc
+        raise RuntimeError(f"Could not load answer key: {answer_key_path}") from exc
+
+    if not isinstance(answer_key, dict):
+        raise ValueError("Answer key must be a JSON object.")
 
     if answer_key.get("version") != 2:
         raise ValueError("Answer key must declare version 2.")
@@ -75,9 +74,18 @@ def _is_json_number(value: Any) -> bool:
     return type(value) in (int, float, Decimal)
 
 
+def _reject_non_json_constant(value: str) -> NoReturn:
+    """Reject Python's non-standard NaN and Infinity JSON extensions."""
+    raise json.JSONDecodeError(f"Invalid JSON constant: {value}", value, 0)
+
+
 def _load_json(text: str) -> Any:
-    """Parse JSON while preserving the exact value of fractional numbers."""
-    return json.loads(text, parse_float=Decimal)
+    """Parse strict JSON while preserving exact fractional values."""
+    return json.loads(
+        text,
+        parse_float=Decimal,
+        parse_constant=_reject_non_json_constant,
+    )
 
 
 def _first_json_mismatch(actual: Any, expected: Any, path: str = "$") -> str | None:

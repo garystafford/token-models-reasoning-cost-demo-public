@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
+from typing import Any
 
 OPENAI_PRICING_AS_OF = "2026-08-01"
 OPENAI_PRICING_SOURCE = "https://aws.amazon.com/bedrock/pricing/"
@@ -36,33 +38,59 @@ ANTHROPIC_STANDARD_PRICING_PER_1M = {
 }
 
 
-def estimate_anthropic_standard_cost(model: str, usage: dict) -> float | None:
+def _token_count(usage: Mapping[str, Any], key: str) -> int | None:
+    """Return a valid non-negative token count, or None when unavailable."""
+    value = usage.get(key)
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        return None
+    return value
+
+
+def estimate_anthropic_standard_cost(
+    model: str, usage: Mapping[str, Any]
+) -> float | None:
     """Estimate standard on-demand Claude cost with caching disabled."""
     rates = ANTHROPIC_STANDARD_PRICING_PER_1M.get(model)
     if rates is None:
         return None
 
-    input_tokens = usage.get("input_tokens") or 0
-    output_tokens = usage.get("output_tokens") or 0
+    input_tokens = _token_count(usage, "input_tokens")
+    output_tokens = _token_count(usage, "output_tokens")
+    if input_tokens is None or output_tokens is None:
+        return None
+
     cost = (input_tokens / 1_000_000) * rates["input"] + (
         output_tokens / 1_000_000
     ) * rates["output"]
     return round(cost, 6)
 
 
-def estimate_openai_standard_cost(model: str, usage: dict) -> float | None:
+def estimate_openai_standard_cost(model: str, usage: Mapping[str, Any]) -> float | None:
     """Estimate standard on-demand cost without cache-read discounts."""
     rates = OPENAI_STANDARD_PRICING_PER_1M.get(model)
     if rates is None:
         return None
 
-    input_tokens = usage.get("input_tokens") or 0
-    output_tokens = usage.get("output_tokens") or 0
+    input_tokens = _token_count(usage, "input_tokens")
+    output_tokens = _token_count(usage, "output_tokens")
+    if input_tokens is None or output_tokens is None:
+        return None
+
     raw_usage = usage.get("raw_usage") or {}
-    input_details = raw_usage.get("input_tokens_details") or {}
+    input_details = (
+        raw_usage.get("input_tokens_details")
+        if isinstance(raw_usage, Mapping)
+        else None
+    )
+    cache_write_tokens = (
+        _token_count(input_details, "cache_write_tokens")
+        if isinstance(input_details, Mapping)
+        else None
+    )
+    cache_write_tokens = cache_write_tokens or 0
     cache_write_tokens = min(
         input_tokens,
-        max(0, input_details.get("cache_write_tokens") or 0),
+        cache_write_tokens,
     )
     base_input_tokens = input_tokens - cache_write_tokens
     cache_write_rate = rates.get("cache_write", rates["input"])
