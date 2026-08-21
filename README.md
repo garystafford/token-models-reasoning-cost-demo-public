@@ -445,3 +445,7 @@ Choosing a reasoning model is a systems problem, not a token-price lookup. A def
 * **Pricing and caching assumptions.** State whether estimates use on-demand, batch, cached, promotional, or committed-use rates. Verify actual cache reads instead of assuming repeated prompts received a discount.
 * **Safety-policy behavior.** Benign tasks can still trigger provider policies depending on wording and system context. Classify refusals separately and keep the system instruction consistent across models.
 * **Model and provider drift.** Re-run the benchmark when prompts, models, endpoints, pricing, safety behavior, or provider implementations change. A routing decision is a monitored policy, not a permanent leaderboard.
+
+---
+
+_The contents of this repository represent my viewpoints and not those of my past or current employers. All third-party libraries, modules, plugins, and SDKs are the property of their respective owners._
