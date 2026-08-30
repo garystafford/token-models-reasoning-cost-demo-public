@@ -149,7 +149,7 @@ The timestamped JSON result file is atomically updated after every completed cal
 
 ### Run All Benchmark Suites In The Background
 
-Use the standalone [`scripts/run_reasoning_benchmarks.sh`](scripts/run_reasoning_benchmarks.sh)
+Use the standalone [ `scripts/run_reasoning_benchmarks.sh` ](scripts/run_reasoning_benchmarks.sh)
 utility instead of maintaining an inline shell loop. It runs all six benchmark
 modules sequentially, supports repeated cycles through `RUNS` , and reports
 module failures. `BENCHMARK_EFFORT=all` is the default; accepted values are
@@ -180,7 +180,7 @@ BENCHMARK_EFFORT=none nohup ./scripts/run_reasoning_benchmarks.sh \
 
 The Anthropic no-reasoning run uses explicit `thinking: {"type": "disabled"}`
 
-for models that support it. Claude Fable 5 does not support disabled thinking,
+for models that support it. Claude Fable 5 does not support disabled thinking, 
 so it is skipped in `BENCHMARK_EFFORT=none` runs.
 
 Follow the live output:
@@ -317,8 +317,8 @@ Keep this file unchanged between provider runs when comparing results.
 
 The scientific field-research suite is independently verified. It tests whether
 conclusions from the business-operations suite generalize rather than reflect
-one unusual prompt set. The six scenarios cover chemistry, genetics,
-stratified ecology, astronomy event analysis, laboratory resource allocation,
+one unusual prompt set. The six scenarios cover chemistry, genetics, 
+stratified ecology, astronomy event analysis, laboratory resource allocation, 
 and research-vessel scheduling, with two tasks at each difficulty level.
 
 Verify its answer key without making model requests:
@@ -370,7 +370,7 @@ not mix them into the business-operations or scientific run matrices.
 
 Each script prints a summary and writes its full response records to a timestamped provider-specific JSON file under `results/` .
 
-The Anthropic no-reasoning runs use explicit disabled thinking for Opus 5,
+The Anthropic no-reasoning runs use explicit disabled thinking for Opus 5, 
 Sonnet 5, and Haiku 4.5. Fable 5 is excluded because disabled thinking is not
 supported. A small OpenAI telemetry anomaly is marked in the summary rather
 than silently treated as measured zero.
